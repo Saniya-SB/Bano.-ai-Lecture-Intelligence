@@ -36,12 +36,7 @@ export default function LandingPage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
-            <Button asChild variant="secondary" size="lg" className="gap-2">
-              <Link href={ROUTES.DEV_STYLEGUIDE}>
-                <Palette className="h-4 w-4" />
-                Inspect Design System
-              </Link>
-            </Button>
+           
           </div>
         </div>
 
@@ -87,7 +82,7 @@ export default function LandingPage() {
       </div>
 
       {/* Feature Navigation Cards */}
-      <div className="mt-20 pt-12 border-t border-border grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="mt-20 pt-12 border-t border-border grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
         <Card className="p-6 hover:border-bano-border-strong transition-colors">
           <BookOpen className="h-6 w-6 text-bano-accent mb-3" />
           <h3 className="font-heading font-semibold text-base mb-1">Lecture Workspace</h3>
@@ -110,16 +105,7 @@ export default function LandingPage() {
           </Button>
         </Card>
 
-        <Card className="p-6 hover:border-bano-border-strong transition-colors">
-          <Palette className="h-6 w-6 text-bano-accent mb-3" />
-          <h3 className="font-heading font-semibold text-base mb-1">Design System & Tokens</h3>
-          <p className="text-xs text-bano-text-muted mb-4">
-            Warm Minimalist color palette, typography scale, accessible components, and token contrast report.
-          </p>
-          <Button variant="link" asChild className="p-0 h-auto text-xs">
-            <Link href={ROUTES.DEV_STYLEGUIDE}>Open Styleguide &rarr;</Link>
-          </Button>
-        </Card>
+       
       </div>
     </div>
   );
