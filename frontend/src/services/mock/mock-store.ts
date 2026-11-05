@@ -18,6 +18,8 @@ class MockStore {
   private jobs: Record<string, JobDto> = {};
   private currentUser: UserDto | null = null;
   private isAuthenticated = true;
+  private readonly USER_STORAGE_KEY= "bano_mock_user";
+  private readonly AUTH_STORAGE_KEY= "bano_mock_authenticated"; 
 
   constructor() {
     this.reset();
@@ -42,6 +44,22 @@ class MockStore {
 
   async getCurrentUser(): Promise<UserDto | null> {
     await simulateLatency();
+    if (typeof window !== "undefined") {
+      const storedAuth = window.localStorage.getItem(this.AUTH_STORAGE_KEY);
+
+if (storedAuth !== null) {
+  this.isAuthenticated = storedAuth === "true";
+}
+  const storedUser = window.localStorage.getItem(this.USER_STORAGE_KEY);
+
+  if (storedUser) {
+    try {
+      this.currentUser = JSON.parse(storedUser) as UserDto;
+    } catch {
+      window.localStorage.removeItem(this.USER_STORAGE_KEY);
+    }
+  }
+}
     this.checkErrors();
     if (!this.isAuthenticated) {
       throw new ApiError({
@@ -150,9 +168,41 @@ class MockStore {
     return this.jobs[lectureId] || null;
   }
 
-  setAuthenticated(status: boolean) {
-    this.isAuthenticated = status;
+  // setAuthenticated(status: boolean) {
+  //   this.isAuthenticated = status;
+  // }
+  registerUser(data: { full_name: string; email: string }) {
+  this.currentUser = {
+    id: `usr_${Date.now()}`,
+    email: data.email,
+    full_name: data.full_name,
+    created_at: new Date().toISOString(),
+  };
+
+  this.isAuthenticated = true;
+
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(
+      this.USER_STORAGE_KEY,
+      JSON.stringify(this.currentUser)
+    );
   }
+}
+setAuthenticated(status: boolean) {
+  this.isAuthenticated = status;
+
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(
+      this.AUTH_STORAGE_KEY,
+      String(status)
+    );
+
+    if (!status) {
+      window.localStorage.removeItem(this.USER_STORAGE_KEY);
+      this.currentUser = null;
+    }
+  }
+}
 }
 
 export const mockStore = new MockStore();

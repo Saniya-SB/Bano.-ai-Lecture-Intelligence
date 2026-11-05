@@ -5,6 +5,10 @@ import { Sidebar } from "./sidebar";
 import { Header } from "./header";
 import { DemoModeBanner } from "@/components/shared/demo-mode-banner";
 import { OfflineBanner } from "@/components/shared/offline-banner";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
+import { ROUTES } from "@/config/routes";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -12,6 +16,18 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, title }: AppShellProps) {
+  const router = useRouter();
+  const { isAuthenticated, isLoading, isError } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading && (!isAuthenticated || isError)) {
+      router.replace(ROUTES.LOGIN);
+    }
+  }, [isLoading, isAuthenticated, isError, router]);
+
+  if (isLoading || !isAuthenticated || isError) {
+    return null;
+  }
   return (
     <div className="flex min-h-screen flex-col bg-bano-bg">
       <OfflineBanner />

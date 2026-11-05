@@ -7,6 +7,7 @@ import { User } from "@/types/domain/common";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/config/routes";
 
+
 export function useAuth() {
   const queryClient = useQueryClient();
   const router = useRouter();

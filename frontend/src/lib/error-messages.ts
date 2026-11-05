@@ -35,6 +35,16 @@ export const DOMAIN_ERROR_MESSAGES = {
   benchmarkUnavailable: "Benchmark data is currently unavailable.",
 } as const;
 
-export function getErrorMessage(kind: ApiErrorKind, fallback?: string): string {
-  return fallback || ERROR_MESSAGES[kind] || ERROR_MESSAGES.unknown;
+export function getErrorMessage(kindOrError: ApiErrorKind | unknown, fallback?: string): string {
+  if (typeof kindOrError === "string") {
+    return fallback || ERROR_MESSAGES[kindOrError as ApiErrorKind] || ERROR_MESSAGES.unknown;
+  }
+  if (kindOrError instanceof Error) {
+    return kindOrError.message || ERROR_MESSAGES.unknown;
+  }
+  return fallback || ERROR_MESSAGES.unknown;
 }
+
+/** Generic "invalid credentials" — never reveals which field was wrong (blueprint §5.3). */
+export const INVALID_CREDENTIALS_MESSAGE =
+  "Invalid email or password. Please check your details and try again.";
