@@ -34,17 +34,36 @@ export const authService = {
   },
 
   async signup(data: { full_name: string; email: string; password: string }): Promise<User> {
+    // if (env.USE_MOCK_API) {
+    //   mockStore.setAuthenticated(true);
+    //   const user = await mockStore.getCurrentUser();
+    //   if (!user) throw new Error("Mock user not found");
+    //   return mapUserDtoToDomain(user);
+    // }
+
     if (env.USE_MOCK_API) {
-      mockStore.setAuthenticated(true);
-      const user = await mockStore.getCurrentUser();
-      if (!user) throw new Error("Mock user not found");
-      return mapUserDtoToDomain(user);
-    }
+  mockStore.registerUser(data);
+  const user = await mockStore.getCurrentUser();
+  if (!user) throw new Error("Mock user not found");
+  return mapUserDtoToDomain(user);
+}
     const dto = await apiClient<UserDto>("/auth/signup", {
       method: "POST",
       body: JSON.stringify(data),
     });
     return mapUserDtoToDomain(dto);
+  },
+
+  async forgotPassword(email: string): Promise<void> {
+    if (env.USE_MOCK_API) {
+      // Mock: simulate network latency and always succeed
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      return;
+    }
+    await apiClient<void>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
   },
 
   async logout(): Promise<void> {
