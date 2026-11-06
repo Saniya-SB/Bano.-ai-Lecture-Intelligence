@@ -36,9 +36,10 @@ async def test_gnani_provider_rest_success():
         assert isinstance(result, NormalisedTranscript)
         assert result.lecture_id == "lec_123"
         assert result.full_text_devanagari == "आज हम बाइनरी ट्री डिस्कस करेंगे"
-        # Roman transcript must be transliterated
+        # Roman transcript must be transliterated with technical terms intact
         assert len(result.roman_segments) == 1
-        assert "aaja hama" in result.full_text_roman.lower() or "bainari" in result.full_text_roman.lower()
+        assert "binary tree" in result.full_text_roman.lower()
+        assert "aaj hum" in result.full_text_roman.lower()
         assert result.raw_provider_response == mock_rest_response
 
 

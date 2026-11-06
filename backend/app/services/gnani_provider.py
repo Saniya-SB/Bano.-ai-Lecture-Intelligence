@@ -8,6 +8,7 @@ from indic_transliteration import sanscript
 from backend.app.core.config import settings
 from backend.app.core.exceptions import AppException
 from backend.app.core.logging import logger
+from backend.app.services.transliteration import transliteration_service
 
 
 class NormalisedTranscriptSegment(BaseModel):
@@ -32,18 +33,12 @@ class NormalisedTranscript(BaseModel):
 
 def transliterate_devanagari_to_roman(text: str) -> str:
     """
-    Transliterates Devanagari text to readable Roman Hinglish while preserving Latin words.
-    Uses indic_transliteration sanscript ITRANS scheme.
+    Transliterates Devanagari text to readable Roman Hinglish while preserving Latin words
+    and keeping technical terminology intact.
     """
     if not text:
         return ""
-    try:
-        # Transliterate devanagari characters to Roman
-        roman = sanscript.transliterate(text, sanscript.DEVANAGARI, sanscript.ITRANS)
-        return roman
-    except Exception as e:
-        logger.warning(f"Transliteration failed: {e}; returning original text")
-        return text
+    return transliteration_service.transliterate_text(text)
 
 
 class GnaniSTTProvider:

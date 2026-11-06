@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     FFMPEG_PATH: str = "ffmpeg"
     FFPROBE_PATH: str = "ffprobe"
 
+    # Transliteration
+    TRANSLITERATION_LLM_FALLBACK: bool = False  # Reserved for future LLM-based fallback; not wired in
+
     # Job Execution & Resumption
     MAX_JOB_RETRIES: int = 3
 
