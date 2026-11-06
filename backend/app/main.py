@@ -19,8 +19,21 @@ async def lifespan(app: FastAPI):
     if settings.ENVIRONMENT == "production" and settings.AUTH_MODE == "dev":
         raise RuntimeError("Refusing to start: AUTH_MODE=dev is not allowed when ENVIRONMENT=production")
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION} [{settings.ENVIRONMENT}]")
+
+    # Resume or fail jobs stuck in non-terminal states on startup
+    try:
+        from backend.app.db.session import SessionLocal
+        from backend.app.services.job_machine import JobStateMachine
+        with SessionLocal() as db:
+            recovered = JobStateMachine.recover_stuck_jobs(db)
+            if recovered > 0:
+                logger.info(f"Startup recovery handled {recovered} stuck job(s)")
+    except Exception as e:
+        logger.warning(f"Error during job recovery on startup: {e}")
+
     yield
     logger.info(f"Shutting down {settings.PROJECT_NAME}")
+
 
 
 app = FastAPI(

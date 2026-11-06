@@ -33,6 +33,21 @@ class Settings(BaseSettings):
     # Gnani STT
     GNANI_API_KEY: str = ""
     GNANI_BASE_URL: str = "https://api.vachana.ai"
+    GNANI_REST_MAX_DURATION_SECONDS: int = 30
+    GNANI_BATCH_POLL_INTERVAL_SECONDS: float = 2.0
+    GNANI_BATCH_TIMEOUT_SECONDS: int = 300
+
+    # Storage & Upload Limits
+    STORAGE_BACKEND: Literal["local", "gcs", "s3"] = "local"
+    LOCAL_STORAGE_DIR: str = "/tmp/bano_storage"
+    MAX_UPLOAD_FILE_SIZE_BYTES: int = 500 * 1024 * 1024  # 500 MB
+    MIN_UPLOAD_DURATION_SECONDS: float = 3.0
+    MAX_UPLOAD_DURATION_SECONDS: float = 7200.0  # 2 hours
+    FFMPEG_PATH: str = "ffmpeg"
+    FFPROBE_PATH: str = "ffprobe"
+
+    # Job Execution & Resumption
+    MAX_JOB_RETRIES: int = 3
 
     # CORS
     CORS_ORIGINS: list[str] = [

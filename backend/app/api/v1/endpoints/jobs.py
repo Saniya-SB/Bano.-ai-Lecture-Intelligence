@@ -1,0 +1,58 @@
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+
+from backend.app.core.exceptions import AppException
+from backend.app.db.session import get_db
+from backend.app.api.deps import get_current_user
+from backend.app.models.entities import User, TranscriptionJob, Lecture
+from backend.app.schemas.upload_job import JobDto
+
+router = APIRouter(prefix="/jobs", tags=["Jobs"])
+
+
+@router.get("/{identifier}", response_model=JobDto)
+def get_job(
+    identifier: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Retrieves job state by either Job ID or Lecture ID.
+    Enforces user ownership security check.
+    """
+    # 1. Try finding by job ID
+    stmt = select(TranscriptionJob).where(TranscriptionJob.id == identifier)
+    job = db.execute(stmt).scalar_one_or_none()
+
+    # 2. If not found, try finding by lecture ID (as expected by frontend jobService.getJob(lectureId))
+    if not job:
+        stmt = select(TranscriptionJob).where(TranscriptionJob.lecture_id == identifier)
+        job = db.execute(stmt).scalar_one_or_none()
+
+    if not job:
+        raise AppException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message="Transcription job not found",
+            code="JOB_NOT_FOUND",
+        )
+
+    # Ownership check
+    lecture = db.execute(select(Lecture).where(Lecture.id == job.lecture_id)).scalar_one_or_none()
+    if not lecture or lecture.user_id != current_user.id:
+        raise AppException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message="Transcription job not found",
+            code="JOB_NOT_FOUND",
+        )
+
+    return JobDto(
+        id=job.id,
+        lecture_id=job.lecture_id,
+        stage=job.stage,
+        progress_percent=job.progress_percent,
+        error_message=job.error_message,
+        created_at=job.created_at.isoformat() if job.created_at else "",
+        updated_at=job.updated_at.isoformat() if job.updated_at else "",
+    )
+
