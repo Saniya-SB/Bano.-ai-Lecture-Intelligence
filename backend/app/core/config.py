@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     # Environment & Auth mode
     ENVIRONMENT: Literal["development", "test", "production"] = "development"
     AUTH_MODE: Literal["dev", "firebase"] = "dev"
+    FIREBASE_CREDENTIALS_PATH: str = ""
     DEV_MOCK_USER_ID: str = "usr_mock_1"
     DEV_MOCK_USER_EMAIL: str = "student@bano.ai"
     DEV_MOCK_USER_NAME: str = "Aman Sharma"

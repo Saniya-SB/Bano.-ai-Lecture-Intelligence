@@ -16,6 +16,8 @@ from backend.app.core.logging import logger
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if settings.ENVIRONMENT == "production" and settings.AUTH_MODE == "dev":
+        raise RuntimeError("Refusing to start: AUTH_MODE=dev is not allowed when ENVIRONMENT=production")
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION} [{settings.ENVIRONMENT}]")
     yield
     logger.info(f"Shutting down {settings.PROJECT_NAME}")
