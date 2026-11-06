@@ -161,6 +161,54 @@ if (storedAuth !== null) {
     delete this.jobs[id];
   }
 
+  /**
+   * Simulates a file or recording upload with progress callbacks.
+   * Completely separate from real API — no network calls are made.
+   * Progress fires at 20%, 50%, 80%, then 100% on completion.
+   */
+  async simulateFileUpload(
+    params: { title: string; subject: string; topic?: string },
+    onProgress?: (percent: number) => void
+  ): Promise<LectureDto> {
+    this.checkErrors();
+
+    const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+    const latency = env.MOCK_SCENARIO === "slow" ? 600 : 200;
+
+    onProgress?.(20);
+    await delay(latency);
+    onProgress?.(50);
+    await delay(latency);
+    onProgress?.(80);
+    await delay(latency);
+
+    // Create the lecture record in mock store
+    const newId = `lec_${Date.now()}`;
+    const newLecture: LectureDto = {
+      id: newId,
+      title: params.title,
+      subject: params.subject,
+      topic: params.topic,
+      duration_seconds: 0,
+      status: "uploaded",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    this.lectures.unshift(newLecture);
+    this.jobs[newId] = {
+      id: `job_${Date.now()}`,
+      lecture_id: newId,
+      stage: "uploading",
+      progress_percent: 10,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    onProgress?.(100);
+    return newLecture;
+  }
+
   async getJob(lectureId: string): Promise<JobDto | null> {
     await simulateLatency();
     this.checkErrors();
