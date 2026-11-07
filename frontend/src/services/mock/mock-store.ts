@@ -1,6 +1,8 @@
-import { env } from "@/config/env";
+﻿import { env } from "@/config/env";
 import { LectureDto, JobDto, UserDto } from "@/types/api/common";
-import { MOCK_LECTURES, MOCK_JOBS, MOCK_USER } from "./fixtures";
+import { MOCK_BENCHMARK_RESULTS, MOCK_LECTURES, MOCK_JOBS, MOCK_USER, MOCK_TRANSCRIPTS, MOCK_LEARNING_MATERIALS, MOCK_QUIZ_TEMPLATES } from "./fixtures";
+import { LearningMaterialsDto, QuizDto } from "@/types/api/materials";
+import { TranscriptDto } from "@/types/api/transcript";
 import { ApiError } from "@/types/domain/common";
 
 export async function simulateLatency(scenario?: string): Promise<void> {
@@ -16,21 +18,57 @@ export async function simulateLatency(scenario?: string): Promise<void> {
 class MockStore {
   private lectures: LectureDto[] = [];
   private jobs: Record<string, JobDto> = {};
+  private transcripts: Record<string, TranscriptDto> = {};
+  private materials: Record<string, LearningMaterialsDto> = {};
+  private quizzes: Record<string, QuizDto> = {};
   private currentUser: UserDto | null = null;
   private isAuthenticated = true;
   private readonly USER_STORAGE_KEY= "bano_mock_user";
   private readonly AUTH_STORAGE_KEY= "bano_mock_authenticated"; 
+  private readonly DATA_STORAGE_KEY= "bano_mock_data";
 
   constructor() {
     this.reset();
+    this.restorePersistedState();
   }
 
   reset() {
     this.lectures = [...MOCK_LECTURES];
     this.jobs = { ...MOCK_JOBS };
+    this.transcripts = { ...MOCK_TRANSCRIPTS };
+    this.materials = { ...MOCK_LEARNING_MATERIALS };
     this.currentUser = { ...MOCK_USER };
     this.isAuthenticated = true;
   }
+  private restorePersistedState() {
+  if (typeof window === "undefined") return;
+
+  const savedData = window.localStorage.getItem(this.DATA_STORAGE_KEY);
+  if (!savedData) return;
+
+  try {
+    const data = JSON.parse(savedData);
+
+    if (Array.isArray(data.lectures) && data.jobs) {
+      this.lectures = data.lectures;
+      this.jobs = data.jobs;
+    }
+  } catch {
+    window.localStorage.removeItem(this.DATA_STORAGE_KEY);
+  }
+}
+
+private persistState() {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(
+    this.DATA_STORAGE_KEY,
+    JSON.stringify({
+      lectures: this.lectures,
+      jobs: this.jobs,
+    })
+  );
+}
 
   private checkErrors() {
     if (env.MOCK_SCENARIO === "errors") {
@@ -127,6 +165,7 @@ if (storedAuth !== null) {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+    this.persistState();
 
     return newLecture;
   }
@@ -204,6 +243,7 @@ if (storedAuth !== null) {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+    this.persistState();
 
     onProgress?.(100);
     return newLecture;
@@ -213,7 +253,107 @@ if (storedAuth !== null) {
     await simulateLatency();
     this.checkErrors();
 
-    return this.jobs[lectureId] || null;
+    const job = this.jobs[lectureId];
+    if (!job) return null;
+
+    if (job.stage !== "completed" && job.stage !== "failed") {
+      const stages: Array<JobDto["stage"]> = [
+        "uploading",
+        "validating",
+        "preparing_audio",
+        "transcribing",
+        "processing_transcript",
+        "generating_learning_material",
+        "completed",
+      ];
+      const currentIndex = stages.indexOf(job.stage);
+      if (currentIndex !== -1 && currentIndex < stages.length - 1) {
+        const nextStage = stages[currentIndex + 1]!;
+        job.stage = nextStage;
+        job.progress_percent = Math.min(100, Math.round(((currentIndex + 2) / stages.length) * 100));
+        job.updated_at = new Date().toISOString();
+
+        if (nextStage === "completed") {
+          const lec = this.lectures.find((l) => l.id === lectureId);
+          if (lec) lec.status = "completed";
+        }
+        this.persistState();
+      }
+    }
+
+    return { ...job };
+  }
+
+  async retryJob(lectureId: string): Promise<JobDto> {
+    await simulateLatency();
+    this.checkErrors();
+
+    const job: JobDto = this.jobs[lectureId] || {
+      id: `job_${Date.now()}`,
+      lecture_id: lectureId,
+      stage: "uploading",
+      progress_percent: 10,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    job.stage = "uploading";
+    job.progress_percent = 10;
+    job.error_message = undefined;
+    job.updated_at = new Date().toISOString();
+    this.jobs[lectureId] = job;
+
+    const lec = this.lectures.find((l) => l.id === lectureId);
+    if (lec) lec.status = "processing";
+    this.persistState();
+    return { ...job };
+  }
+
+  async getLearningMaterials(lectureId: string): Promise<LearningMaterialsDto | null> {
+    await simulateLatency();
+    this.checkErrors();
+
+    if (env.MOCK_SCENARIO === "empty") {
+      return null;
+    }
+
+    return this.materials[lectureId] || null;
+  }
+
+  async generateQuiz(lectureId: string, numQuestions = 5): Promise<QuizDto> {
+    await simulateLatency();
+    this.checkErrors();
+
+    const boundedCount = Math.min(15, Math.max(1, numQuestions));
+    const selected = MOCK_QUIZ_TEMPLATES.slice(0, boundedCount);
+
+    const quiz: QuizDto = {
+      lecture_id: lectureId,
+      is_ai_generated: true,
+      disclaimer: "This quiz is AI-generated from the lecture audio transcript.",
+      questions: selected,
+    };
+
+    this.quizzes[lectureId] = quiz;
+    return quiz;
+  }
+
+  async getQuiz(lectureId: string): Promise<QuizDto | null> {
+    await simulateLatency();
+    this.checkErrors();
+
+    return this.quizzes[lectureId] || null;
+  }
+
+  async getTranscript(lectureId: string): Promise<TranscriptDto | null> {
+    await simulateLatency();
+    this.checkErrors();
+
+    if (env.MOCK_SCENARIO === "empty") {
+      return null;
+    }
+
+    return this.transcripts[lectureId] || null;
   }
 
   // setAuthenticated(status: boolean) {
@@ -251,6 +391,49 @@ setAuthenticated(status: boolean) {
     }
   }
 }
+
+  async getBenchmarkResults(): Promise<any[]> {
+    await simulateLatency();
+    this.checkErrors();
+
+    if (env.MOCK_SCENARIO === "empty") {
+      return [];
+    }
+
+    if (env.MOCK_SCENARIO === "benchmark-sample") {
+      return [...MOCK_BENCHMARK_RESULTS];
+    }
+
+    // By default in mock mode, benchmark is empty unless explicitly in sample mode
+    return [];
+  }
+
+  async updateProfile(data: { full_name: string }): Promise<UserDto> {
+    await simulateLatency();
+    this.checkErrors();
+
+    if (!this.currentUser) {
+      throw new ApiError({
+        kind: "unauthorized",
+        status: 401,
+        userMessage: "You are not authenticated.",
+      });
+    }
+
+    this.currentUser = {
+      ...this.currentUser,
+      full_name: data.full_name,
+    };
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        this.USER_STORAGE_KEY,
+        JSON.stringify(this.currentUser)
+      );
+    }
+
+    return this.currentUser;
+  }
 }
 
 export const mockStore = new MockStore();
