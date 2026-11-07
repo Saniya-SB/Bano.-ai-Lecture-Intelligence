@@ -11,6 +11,7 @@ import {
   Calendar,
   Clock,
   BookOpen,
+  Sparkles,
 } from "lucide-react";
 
 interface OverviewTabProps {
@@ -104,7 +105,7 @@ export function OverviewTab({ lecture, onNavigateTab }: OverviewTabProps) {
                 Bilingual Hinglish Transcript
               </h3>
               <p className="text-xs text-bano-text-muted leading-relaxed">
-                Full lecture transcript synchronized in Devanagari Hindi and Roman Hinglish with timestamps.
+                Full lecture transcript synchronized in Devanagari Hindi and Roman Hinglish with segment classification.
               </p>
             </div>
 
@@ -122,28 +123,57 @@ export function OverviewTab({ lecture, onNavigateTab }: OverviewTabProps) {
           <Card className="p-5 flex flex-col justify-between space-y-4">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-bano-text-subtle uppercase tracking-wider">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-bano-accent uppercase tracking-wider">
                   <ListFilter className="h-3.5 w-3.5" /> Structured Notes
                 </span>
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-bano-surface-sunken text-bano-text-subtle">
-                  Milestone 6
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-bano-success-soft text-bano-success">
+                  {isCompleted ? "Available" : "Processing"}
                 </span>
               </div>
               <h3 className="font-heading font-semibold text-base">
                 Smart Technical Notes
               </h3>
               <p className="text-xs text-bano-text-muted leading-relaxed">
-                Concise bullet points, code explanations, and definitions generated from your Hinglish lecture.
+                Concise bullet points, core properties, and referenced time ranges generated from your lecture.
               </p>
             </div>
 
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              disabled
-              className="self-start text-xs text-bano-text-subtle"
+              onClick={() => onNavigateTab("notes")}
+              className="self-start text-xs"
             >
-              Not generated yet
+              View Notes &rarr;
+            </Button>
+          </Card>
+
+          {/* Summary Card */}
+          <Card className="p-5 flex flex-col justify-between space-y-4">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-bano-accent uppercase tracking-wider">
+                  <Sparkles className="h-3.5 w-3.5" /> Summary &amp; Glossary
+                </span>
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-bano-success-soft text-bano-success">
+                  {isCompleted ? "Available" : "Processing"}
+                </span>
+              </div>
+              <h3 className="font-heading font-semibold text-base">
+                Lecture Summaries &amp; Concepts
+              </h3>
+              <p className="text-xs text-bano-text-muted leading-relaxed">
+                Short and detailed breakdowns, key conceptual definitions, and technical terms dictionary.
+              </p>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onNavigateTab("summary")}
+              className="self-start text-xs"
+            >
+              Read Summary &rarr;
             </Button>
           </Card>
 
@@ -151,57 +181,57 @@ export function OverviewTab({ lecture, onNavigateTab }: OverviewTabProps) {
           <Card className="p-5 flex flex-col justify-between space-y-4">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-bano-text-subtle uppercase tracking-wider">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-bano-accent uppercase tracking-wider">
                   <HelpCircle className="h-3.5 w-3.5" /> Exam Questions
                 </span>
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-bano-surface-sunken text-bano-text-subtle">
-                  Milestone 6
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-bano-success-soft text-bano-success">
+                  {isCompleted ? "Available" : "Processing"}
                 </span>
               </div>
               <h3 className="font-heading font-semibold text-base">
                 Important Questions
               </h3>
               <p className="text-xs text-bano-text-muted leading-relaxed">
-                Key questions categorized into conceptual, short, and long-answer exam problems.
+                Curated exam questions with suggested model answers and source timestamp references.
               </p>
             </div>
 
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              disabled
-              className="self-start text-xs text-bano-text-subtle"
+              onClick={() => onNavigateTab("questions")}
+              className="self-start text-xs"
             >
-              Not generated yet
+              Practice Questions &rarr;
             </Button>
           </Card>
 
           {/* Quiz Card */}
-          <Card className="p-5 flex flex-col justify-between space-y-4">
+          <Card className="p-5 flex flex-col justify-between space-y-4 md:col-span-2">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-bano-text-subtle uppercase tracking-wider">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-bano-accent uppercase tracking-wider">
                   <Award className="h-3.5 w-3.5" /> Interactive Quiz
                 </span>
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-bano-surface-sunken text-bano-text-subtle">
-                  Milestone 6
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-bano-accent-soft text-bano-accent">
+                  On-Demand
                 </span>
               </div>
               <h3 className="font-heading font-semibold text-base">
                 AI Knowledge Check
               </h3>
               <p className="text-xs text-bano-text-muted leading-relaxed">
-                Self-assessment multiple-choice quizzes evaluated through the backend learning engine.
+                On-demand customizable MCQ practice quizzes (1 to 15 questions) strictly grounded in core concept segments.
               </p>
             </div>
 
             <Button
-              variant="ghost"
+              variant="default"
               size="sm"
-              disabled
-              className="self-start text-xs text-bano-text-subtle"
+              onClick={() => onNavigateTab("quiz")}
+              className="self-start text-xs bg-bano-accent hover:bg-bano-accent-hover text-white"
             >
-              Not generated yet
+              Take Quiz &rarr;
             </Button>
           </Card>
         </div>

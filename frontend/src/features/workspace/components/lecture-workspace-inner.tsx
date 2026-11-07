@@ -1,15 +1,21 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLectures } from "@/hooks/use-lectures";
 import { useTranscript } from "@/hooks/use-transcript";
+import { useMaterials } from "@/hooks/use-materials";
+import { useQuiz } from "@/hooks/use-quiz";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { OverviewTab } from "@/features/workspace/components/overview-tab";
 import { TranscriptViewer } from "@/features/transcript/components/transcript-viewer";
+import { NotesTab } from "@/features/materials/components/notes-tab";
+import { SummaryTab } from "@/features/materials/components/summary-tab";
+import { QuestionsTab } from "@/features/materials/components/questions-tab";
+import { QuizTab } from "@/features/materials/components/quiz-tab";
 import { formatTimestamp } from "@/lib/formatters";
 import { ROUTES } from "@/config/routes";
 import { LectureStatus } from "@/types/domain/common";
@@ -18,10 +24,6 @@ import {
   AlertCircle,
   FileText,
   Clock,
-  Sparkles,
-  HelpCircle,
-  Award,
-  ListFilter,
   RefreshCw,
 } from "lucide-react";
 
@@ -47,7 +49,13 @@ export function LectureWorkspaceInner({ lectureId }: { lectureId: string }) {
   const searchParams = useSearchParams();
   const activeTab = (searchParams.get("tab") as WorkspaceTab) || "overview";
 
-  const { lectures, isLoading: isLecturesLoading, isError: isLecturesError, refetch: refetchLectures } = useLectures();
+  const {
+    lectures,
+    isLoading: isLecturesLoading,
+    isError: isLecturesError,
+    refetch: refetchLectures,
+  } = useLectures();
+
   const {
     transcript,
     isLoading: isTranscriptLoading,
@@ -55,10 +63,31 @@ export function LectureWorkspaceInner({ lectureId }: { lectureId: string }) {
     refetch: refetchTranscript,
   } = useTranscript(lectureId);
 
+  const {
+    materials,
+    isLoading: isMaterialsLoading,
+    isError: isMaterialsError,
+    refetch: refetchMaterials,
+  } = useMaterials(lectureId);
+
+  const {
+    quiz,
+    isLoading: isQuizLoading,
+    isGenerating: isQuizGenerating,
+    isError: isQuizError,
+    generateQuiz,
+    refetch: refetchQuiz,
+  } = useQuiz(lectureId);
+
   const lecture = lectures.find((l) => l.id === lectureId);
 
   const handleTabChange = (newTab: string) => {
     router.replace(`/lectures/${lectureId}?tab=${newTab}`);
+  };
+
+  const handleTimestampClick = (seconds: number) => {
+    handleTabChange("transcript");
+    // Could optionally trigger smooth scroll to matching timestamp
   };
 
   if (isLecturesLoading) {
@@ -248,77 +277,58 @@ export function LectureWorkspaceInner({ lectureId }: { lectureId: string }) {
                 )}
               </Card>
             ) : (
-              <TranscriptViewer transcript={transcript} />
+              <TranscriptViewer transcript={transcript} onTimestampClick={handleTimestampClick} />
             )}
           </div>
         )}
 
-        {/* Milestone 6 Placeholders */}
         {activeTab === "notes" && (
           <div role="tabpanel" id="panel-notes" aria-labelledby="tab-notes">
-            <Card className="p-12 text-center space-y-3 bg-card border border-border">
-              <ListFilter className="h-10 w-10 mx-auto text-bano-accent" />
-              <h3 className="text-lg font-heading font-semibold text-foreground">
-                Structured Smart Notes
-              </h3>
-              <p className="text-xs text-bano-text-muted max-w-md mx-auto">
-                Comprehensive lecture overview, main concepts, code breakdowns, and technical glossary will be implemented in Milestone 6.
-              </p>
-              <div className="inline-block mt-2 px-3 py-1 bg-bano-surface-sunken rounded-full font-mono text-[11px] text-bano-text-subtle">
-                Coming in Milestone 6: Learning Material
-              </div>
-            </Card>
+            <NotesTab
+              materials={materials}
+              isLoading={isMaterialsLoading}
+              isError={isMaterialsError}
+              onRetry={refetchMaterials}
+              onTimestampClick={handleTimestampClick}
+            />
           </div>
         )}
 
         {activeTab === "summary" && (
           <div role="tabpanel" id="panel-summary" aria-labelledby="tab-summary">
-            <Card className="p-12 text-center space-y-3 bg-card border border-border">
-              <Sparkles className="h-10 w-10 mx-auto text-bano-accent" />
-              <h3 className="text-lg font-heading font-semibold text-foreground">
-                Lecture Summaries
-              </h3>
-              <p className="text-xs text-bano-text-muted max-w-md mx-auto">
-                Short and detailed bullet summaries, key takeaways, and revision cards will be implemented in Milestone 6.
-              </p>
-              <div className="inline-block mt-2 px-3 py-1 bg-bano-surface-sunken rounded-full font-mono text-[11px] text-bano-text-subtle">
-                Coming in Milestone 6: Learning Material
-              </div>
-            </Card>
+            <SummaryTab
+              materials={materials}
+              isLoading={isMaterialsLoading}
+              isError={isMaterialsError}
+              onRetry={refetchMaterials}
+              onTimestampClick={handleTimestampClick}
+            />
           </div>
         )}
 
         {activeTab === "questions" && (
           <div role="tabpanel" id="panel-questions" aria-labelledby="tab-questions">
-            <Card className="p-12 text-center space-y-3 bg-card border border-border">
-              <HelpCircle className="h-10 w-10 mx-auto text-bano-accent" />
-              <h3 className="text-lg font-heading font-semibold text-foreground">
-                Exam &amp; Conceptual Questions
-              </h3>
-              <p className="text-xs text-bano-text-muted max-w-md mx-auto">
-                Curated short-answer, long-answer, and conceptual problem sets derived from this Hinglish lecture will be implemented in Milestone 6.
-              </p>
-              <div className="inline-block mt-2 px-3 py-1 bg-bano-surface-sunken rounded-full font-mono text-[11px] text-bano-text-subtle">
-                Coming in Milestone 6: Learning Material
-              </div>
-            </Card>
+            <QuestionsTab
+              materials={materials}
+              isLoading={isMaterialsLoading}
+              isError={isMaterialsError}
+              onRetry={refetchMaterials}
+              onTimestampClick={handleTimestampClick}
+            />
           </div>
         )}
 
         {activeTab === "quiz" && (
           <div role="tabpanel" id="panel-quiz" aria-labelledby="tab-quiz">
-            <Card className="p-12 text-center space-y-3 bg-card border border-border">
-              <Award className="h-10 w-10 mx-auto text-bano-accent" />
-              <h3 className="text-lg font-heading font-semibold text-foreground">
-                AI Knowledge Quiz
-              </h3>
-              <p className="text-xs text-bano-text-muted max-w-md mx-auto">
-                Interactive multiple-choice practice quizzes with server-evaluated score summaries will be implemented in Milestone 6.
-              </p>
-              <div className="inline-block mt-2 px-3 py-1 bg-bano-surface-sunken rounded-full font-mono text-[11px] text-bano-text-subtle">
-                Coming in Milestone 6: Learning Material
-              </div>
-            </Card>
+            <QuizTab
+              quiz={quiz}
+              isLoading={isQuizLoading}
+              isGenerating={isQuizGenerating}
+              isError={isQuizError}
+              onGenerateQuiz={generateQuiz}
+              onRetry={refetchQuiz}
+              onTimestampClick={handleTimestampClick}
+            />
           </div>
         )}
       </div>

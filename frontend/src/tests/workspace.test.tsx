@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+﻿import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { LectureWorkspaceInner } from "@/features/workspace/components/lecture-workspace-inner";
@@ -67,6 +67,35 @@ vi.mock("@/hooks/use-transcript", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-materials", () => ({
+  useMaterials: () => ({
+    materials: {
+      lectureId: "lec_101",
+      isAiGenerated: true,
+      disclaimer: "AI disclaimer",
+      summary: { short: "Short summary", detailed: "Detailed summary" },
+      notes: [{ heading: "BST Properties", bulletPoints: ["Point 1"] }],
+      keyConcepts: [],
+      glossary: [],
+      importantQuestions: [],
+    },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+}));
+
+vi.mock("@/hooks/use-quiz", () => ({
+  useQuiz: () => ({
+    quiz: null,
+    isLoading: false,
+    isGenerating: false,
+    isError: false,
+    generateQuiz: vi.fn(),
+    refetch: vi.fn(),
+  }),
+}));
+
 describe("LectureWorkspacePage", () => {
   it("renders lecture header and all 6 tabs", () => {
     currentTab = "overview";
@@ -100,13 +129,11 @@ describe("LectureWorkspacePage", () => {
     expect(screen.getByText(/View Live Status/i)).toBeInTheDocument();
   });
 
-  it("renders M6 placeholder card when Notes tab is active", () => {
+  it("renders NotesTab when Notes tab is active", () => {
     currentTab = "notes";
     render(<LectureWorkspaceInner lectureId="lec_101" />);
 
-    expect(screen.getByText(/Structured Smart Notes/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/Coming in Milestone 6: Learning Material/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText("BST Properties")).toBeInTheDocument();
+    expect(screen.getByText("Point 1")).toBeInTheDocument();
   });
 });
