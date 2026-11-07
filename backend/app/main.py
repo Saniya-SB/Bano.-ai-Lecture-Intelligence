@@ -73,5 +73,9 @@ app.add_exception_handler(Exception, generic_exception_handler)
 # Include v1 Router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+# Expose GET /benchmark/results at root as well for convenience
+from backend.app.api.v1.endpoints.benchmark import router as benchmark_router
+app.include_router(benchmark_router)
+
 
 

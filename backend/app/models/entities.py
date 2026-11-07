@@ -164,6 +164,8 @@ class ReferenceTranscript(Base, TimestampMixin):
     ground_truth_roman: Mapped[str] = mapped_column(Text, nullable=False)
     technical_terms: Mapped[list[str]] = mapped_column(JSON, nullable=False)
     consent_for_benchmark: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    source: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    license: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
 
     __table_args__ = (
         UniqueConstraint("dataset_name", "sample_name", name="uq_dataset_sample"),
@@ -183,6 +185,9 @@ class BenchmarkRun(Base):
     hypothesis_transcript: Mapped[str] = mapped_column(Text, nullable=False)
     wer: Mapped[float] = mapped_column(Numeric(6, 2), nullable=False)
     cer: Mapped[float] = mapped_column(Numeric(6, 2), nullable=False)
+    wer_roman: Mapped[Optional[float]] = mapped_column(Numeric(6, 2), nullable=True)
+    cer_roman: Mapped[Optional[float]] = mapped_column(Numeric(6, 2), nullable=True)
+    hypothesis_roman: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     technical_term_accuracy: Mapped[float] = mapped_column(Numeric(6, 2), nullable=False)
     code_switch_score: Mapped[Optional[float]] = mapped_column(Numeric(6, 2), nullable=True)
     hindi_accuracy: Mapped[Optional[float]] = mapped_column(Numeric(6, 2), nullable=True)
@@ -190,6 +195,8 @@ class BenchmarkRun(Base):
     processing_time_sec: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False)
     estimated_cost_usd: Mapped[float] = mapped_column(Numeric(8, 4), nullable=False)
     is_estimated: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    source: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    license: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     run_timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     reference: Mapped["ReferenceTranscript"] = relationship("ReferenceTranscript", back_populates="benchmark_runs")

@@ -1,0 +1,4 @@
+clip_id,source,consent,license,duration_sec,speech_type,technical_terms
+clip1,own_recording,yes,own,24.2,scripted_read,"recursion;function;recursive call;base condition;stack overflow;factorial;multiply"
+clip2,own_recording,yes,own,25.1,scripted_read,"binary search tree;node;left child;right child;balanced tree;time complexity;worst case;skewed"
+clip3,own_recording,yes,own,20.6,scripted_read,"database;primary key;column;row;unique;null;foreign key;table;relation"

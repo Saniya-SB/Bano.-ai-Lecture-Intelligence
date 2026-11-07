@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -69,10 +69,23 @@ class Settings(BaseSettings):
         "gpt-4o-mini": {"input": 0.15, "output": 0.60},
     }
     
+    # STT Pricing configuration per minute (USD)
+    # Set to None/omitted when pricing is not verified or unconfigured.
+    STT_PRICING_PER_MINUTE: dict[str, Optional[float]] = {
+        "gnani": None,  # Not officially published; user will configure real price
+        "whisper": 0.0060,  # OpenAI Whisper API ($0.006/min official)
+        "google_speech": 0.0160,  # Google Cloud Speech-to-Text standard ($0.016/min official)
+        "azure_speech": 0.0167,  # Azure AI Speech standard ($1.00/hr official)
+        "aws_transcribe": 0.0240,  # AWS Transcribe standard ($0.024/min official)
+    }
+
     # Prompt Versioning & Chunking
     LLM_PROMPT_VERSION: str = "v1.0"
     LLM_CHUNK_MAX_TOKENS: int = 12000  # Conservative segment chunk limit
     LLM_CHUNK_OVERLAP_TOKENS: int = 500
+
+    # Faster Whisper settings
+    FASTER_WHISPER_MODEL: str = "small"
 
     # Job Execution & Resumption
     MAX_JOB_RETRIES: int = 3
