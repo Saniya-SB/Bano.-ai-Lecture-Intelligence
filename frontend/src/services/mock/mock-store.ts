@@ -407,5 +407,33 @@ setAuthenticated(status: boolean) {
     // By default in mock mode, benchmark is empty unless explicitly in sample mode
     return [];
   }
+
+  async updateProfile(data: { full_name: string }): Promise<UserDto> {
+    await simulateLatency();
+    this.checkErrors();
+
+    if (!this.currentUser) {
+      throw new ApiError({
+        kind: "unauthorized",
+        status: 401,
+        userMessage: "You are not authenticated.",
+      });
+    }
+
+    this.currentUser = {
+      ...this.currentUser,
+      full_name: data.full_name,
+    };
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        this.USER_STORAGE_KEY,
+        JSON.stringify(this.currentUser)
+      );
+    }
+
+    return this.currentUser;
+  }
 }
+
 export const mockStore = new MockStore();
