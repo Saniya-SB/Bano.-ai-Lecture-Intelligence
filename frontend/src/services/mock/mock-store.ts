@@ -1,6 +1,6 @@
 ﻿import { env } from "@/config/env";
 import { LectureDto, JobDto, UserDto } from "@/types/api/common";
-import { MOCK_LECTURES, MOCK_JOBS, MOCK_USER, MOCK_TRANSCRIPTS, MOCK_LEARNING_MATERIALS, MOCK_QUIZ_TEMPLATES } from "./fixtures";
+import { MOCK_BENCHMARK_RESULTS, MOCK_LECTURES, MOCK_JOBS, MOCK_USER, MOCK_TRANSCRIPTS, MOCK_LEARNING_MATERIALS, MOCK_QUIZ_TEMPLATES } from "./fixtures";
 import { LearningMaterialsDto, QuizDto } from "@/types/api/materials";
 import { TranscriptDto } from "@/types/api/transcript";
 import { ApiError } from "@/types/domain/common";
@@ -391,6 +391,21 @@ setAuthenticated(status: boolean) {
     }
   }
 }
-}
 
+  async getBenchmarkResults(): Promise<any[]> {
+    await simulateLatency();
+    this.checkErrors();
+
+    if (env.MOCK_SCENARIO === "empty") {
+      return [];
+    }
+
+    if (env.MOCK_SCENARIO === "benchmark-sample") {
+      return [...MOCK_BENCHMARK_RESULTS];
+    }
+
+    // By default in mock mode, benchmark is empty unless explicitly in sample mode
+    return [];
+  }
+}
 export const mockStore = new MockStore();
