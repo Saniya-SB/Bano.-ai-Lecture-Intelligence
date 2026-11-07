@@ -106,7 +106,11 @@ class GeminiProvider(LLMProvider):
         temperature: float = 0.2,
     ) -> LLMResponse:
         model = model_name or settings.GEMINI_DEFAULT_MODEL
-        url = f"{self.base_url}/models/{model}:generateContent?key={self.api_key}"
+        url = f"{self.base_url}/models/{model}:generateContent"
+        headers = {
+            "x-goog-api-key": self.api_key,
+            "Content-Type": "application/json",
+        }
 
         schema = dereference_json_schema(response_model.model_json_schema())
         req_body = {
@@ -128,25 +132,23 @@ class GeminiProvider(LLMProvider):
 
         async def _call_api(body: dict) -> httpx.Response:
             try:
-                resp = await self.http_client.post(url, json=body)
+                resp = await self.http_client.post(url, headers=headers, json=body)
                 return resp
             except Exception as exc:
                 logger.error(f"Gemini API request network failure: {exc}")
                 raise AppException(
                     status_code=502,
-                    message=f"Gemini API communication failure: {str(exc)}",
+                    message="Gemini API communication failure",
                     code="LLM_COMMUNICATION_ERROR"
                 )
 
         response = await _call_api(req_body)
 
         if response.status_code != 200:
-            err_msg = f"Gemini API error (HTTP {response.status_code}): {response.text}"
-            logger.error(err_msg)
-            # Never guess model names. Report exact error.
+            logger.error(f"Gemini API error (HTTP {response.status_code}): {response.text}")
             raise AppException(
                 status_code=502,
-                message=err_msg,
+                message=f"Gemini API error (HTTP {response.status_code})",
                 code="LLM_PROVIDER_ERROR"
             )
 
@@ -267,16 +269,15 @@ class OpenAIProvider(LLMProvider):
             logger.error(f"OpenAI API request network failure: {exc}")
             raise AppException(
                 status_code=502,
-                message=f"OpenAI API communication failure: {str(exc)}",
+                message="OpenAI API communication failure",
                 code="LLM_COMMUNICATION_ERROR"
             )
 
         if resp.status_code != 200:
-            err_msg = f"OpenAI API error (HTTP {resp.status_code}): {resp.text}"
-            logger.error(err_msg)
+            logger.error(f"OpenAI API error (HTTP {resp.status_code}): {resp.text}")
             raise AppException(
                 status_code=502,
-                message=err_msg,
+                message=f"OpenAI API error (HTTP {resp.status_code})",
                 code="LLM_PROVIDER_ERROR"
             )
 

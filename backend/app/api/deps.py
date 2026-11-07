@@ -119,6 +119,12 @@ def get_current_user(
             token = parts[0].strip()
 
     if settings.AUTH_MODE == "dev":
+        if settings.ENVIRONMENT == "production":
+            raise AppException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message="AUTH_MODE=dev is forbidden when ENVIRONMENT=production",
+                code="INSECURE_CONFIGURATION",
+            )
         # In dev mode, if no token header provided, use default dev mock user
         user_info = _parse_dev_token(token or "")
         user_id = user_info["id"]

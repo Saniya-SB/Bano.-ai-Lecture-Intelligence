@@ -44,14 +44,14 @@ class LocalStorageAdapter(StorageAdapter):
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def _resolve(self, storage_path: str) -> Path:
-        # If absolute path already points to an existing file, return it directly
         p = Path(storage_path)
         if p.is_absolute() and p.exists():
             return p
         clean_path = storage_path.lstrip("/")
         full_path = (self.base_dir / clean_path).resolve()
-        # Prevent directory traversal
-        if not str(full_path).startswith(str(self.base_dir)) and not (p.is_absolute() and p.exists()):
+        try:
+            full_path.relative_to(self.base_dir)
+        except ValueError:
             raise ValueError(f"Path traversal detected: {storage_path}")
         return full_path
 

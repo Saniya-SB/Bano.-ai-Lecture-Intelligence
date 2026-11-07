@@ -1,5 +1,6 @@
 import io
 import uuid
+from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Depends, UploadFile, File, Form, BackgroundTasks, status
 from sqlalchemy.orm import Session
@@ -44,6 +45,15 @@ def initiate_upload(
     """
     validate_file_metadata(payload.file_size)
 
+    if payload.lecture_id:
+        existing_lec = db.scalar(select(Lecture).where(Lecture.id == payload.lecture_id))
+        if existing_lec and existing_lec.user_id != current_user.id:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Lecture not found",
+                code="NOT_FOUND",
+            )
+
     upload_id = f"upl_{uuid.uuid4().hex}"
     _pending_uploads[upload_id] = {
         "user_id": current_user.id,
@@ -73,7 +83,7 @@ async def upload_file_binary(
     Direct binary upload destination for local/development storage.
     """
     session = _pending_uploads.get(upload_id)
-    if not session:
+    if not session or session.get("user_id") != current_user.id:
         raise AppException(
             status_code=status.HTTP_404_NOT_FOUND,
             message="Upload session not found or expired",
@@ -92,8 +102,9 @@ async def upload_file_binary(
             code="INVALID_FILE_SIGNATURE",
         )
 
-    # Save to storage
-    dest_path = f"audio/{current_user.id}/{upload_id}_{file.filename}"
+    # Save to storage (sanitize filename to prevent directory traversal)
+    safe_filename = Path(file.filename or "audio").name
+    dest_path = f"audio/{current_user.id}/{upload_id}_{safe_filename}"
     storage_path = storage.save_file(io.BytesIO(file_bytes), dest_path)
     session["storage_path"] = storage_path
     session["file_bytes"] = file_bytes
@@ -113,13 +124,14 @@ async def complete_upload(
     Step 2: Complete upload, perform per-user SHA-256 duplicate detection,
     persist Lecture & TranscriptionJob records, and enqueue BackgroundTasks processing.
     """
-    session = _pending_uploads.pop(payload.upload_id, None)
-    if not session:
+    session = _pending_uploads.get(payload.upload_id)
+    if not session or session.get("user_id") != current_user.id:
         raise AppException(
             status_code=status.HTTP_404_NOT_FOUND,
             message="Invalid or expired upload ID",
             code="INVALID_UPLOAD_ID",
         )
+    _pending_uploads.pop(payload.upload_id, None)
 
     storage_path = session.get("storage_path")
     sha256_hash = session.get("sha256")
@@ -144,6 +156,14 @@ async def complete_upload(
 
     # Create or update Lecture
     lecture_id = session.get("lecture_id") or f"lec_{uuid.uuid4().hex[:12]}"
+    if session.get("lecture_id"):
+        existing_lec = db.scalar(select(Lecture).where(Lecture.id == lecture_id))
+        if existing_lec and existing_lec.user_id != current_user.id:
+            raise AppException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Lecture not found",
+                code="NOT_FOUND",
+            )
     lecture = Lecture(
         id=lecture_id,
         user_id=current_user.id,
@@ -221,7 +241,8 @@ async def direct_upload(
 
     storage = get_storage_adapter()
     lecture_id = f"lec_{uuid.uuid4().hex[:12]}"
-    dest_path = f"audio/{current_user.id}/{lecture_id}_{file.filename}"
+    safe_filename = Path(file.filename or "audio").name
+    dest_path = f"audio/{current_user.id}/{lecture_id}_{safe_filename}"
     storage_path = storage.save_file(io.BytesIO(file_bytes), dest_path)
 
     lec_source = LectureSourceType.RECORDING.value if source_type == "recording" else LectureSourceType.UPLOAD.value

@@ -55,9 +55,19 @@ class LearningMaterialService:
         """
         Enforces that in free mode, ONLY lectures explicitly flagged as test data
         (is_test_data == True) are permitted to route to external LLMs.
+        In production, LLM_TIER=free and is_test_data bypasses are completely forbidden.
         """
+        if settings.ENVIRONMENT == "production" and settings.LLM_TIER == "free":
+            err_msg = "CRITICAL_PRIVACY_VIOLATION: LLM_TIER=free is forbidden in production environment."
+            logger.error(err_msg)
+            raise AppException(
+                status_code=403,
+                message=err_msg,
+                code="PRIVACY_GUARD_BLOCKED"
+            )
+
         if settings.LLM_TIER == "free":
-            is_test = getattr(lecture, "is_test_data", False)
+            is_test = False if settings.ENVIRONMENT == "production" else getattr(lecture, "is_test_data", False)
             if not is_test:
                 err_msg = (
                     "CRITICAL_PRIVACY_VIOLATION: LLM_TIER is set to 'free'. "

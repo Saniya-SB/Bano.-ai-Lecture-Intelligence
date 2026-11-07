@@ -16,8 +16,11 @@ from backend.app.core.logging import logger
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if settings.ENVIRONMENT == "production" and settings.AUTH_MODE == "dev":
-        raise RuntimeError("Refusing to start: AUTH_MODE=dev is not allowed when ENVIRONMENT=production")
+    if settings.ENVIRONMENT == "production":
+        if settings.AUTH_MODE == "dev":
+            raise RuntimeError("Refusing to start: AUTH_MODE=dev is not allowed when ENVIRONMENT=production")
+        if settings.LLM_TIER == "free":
+            raise RuntimeError("Refusing to start: LLM_TIER=free is not allowed when ENVIRONMENT=production")
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION} [{settings.ENVIRONMENT}]")
 
     # Resume or fail jobs stuck in non-terminal states on startup

@@ -184,7 +184,7 @@ async def process_lecture_pipeline(lecture_id: str, provider: Optional[GnaniSTTP
         logger.exception(f"Unhandled error in lecture pipeline for {lecture_id}: {str(ex)}")
         if job:
             JobStateMachine.handle_failure(
-                db, job, error_message=f"Pipeline error: {str(ex)}", error_code="INTERNAL_PROCESSING_ERROR"
+                db, job, error_message="An internal error occurred during lecture processing.", error_code="INTERNAL_PROCESSING_ERROR"
             )
 
     finally:
