@@ -25,9 +25,16 @@ def _format_lecture_response(lecture: Lecture) -> dict:
         "topic": lecture.topic,
         "duration_seconds": lecture.duration_seconds,
         "status": lecture.status,
+        "is_test_data": getattr(lecture, "is_test_data", False),
         "created_at": lecture.created_at.isoformat() if lecture.created_at else "",
         "updated_at": lecture.updated_at.isoformat() if lecture.updated_at else "",
     }
+
+
+def _is_test_data_allowed() -> bool:
+    """is_test_data can only be set when AUTH_MODE=dev or ENVIRONMENT != 'production'."""
+    from backend.app.core.config import settings
+    return settings.AUTH_MODE == "dev" or settings.ENVIRONMENT != "production"
 
 
 @router.post("", response_model=LectureResponse, status_code=status.HTTP_201_CREATED)
@@ -38,8 +45,11 @@ def create_lecture(
 ):
     """
     Create a new lecture. Ownership is enforced via current_user.id.
+    is_test_data is only honored in non-production/dev environments; ignored in production.
     """
     import uuid
+
+    is_test = payload.is_test_data if _is_test_data_allowed() else False
 
     lecture_id = f"lec_{uuid.uuid4().hex[:12]}"
     lecture = Lecture(
@@ -50,6 +60,7 @@ def create_lecture(
         topic=payload.topic,
         duration_seconds=0,
         status=LectureStatus.UPLOADED.value,
+        is_test_data=is_test,
     )
     db.add(lecture)
     db.commit()
@@ -122,6 +133,10 @@ def update_lecture(
         )
 
     updates = payload.model_dump(exclude_unset=True)
+    if "is_test_data" in updates and not _is_test_data_allowed():
+        # Ignore client request to set/flip is_test_data in production
+        del updates["is_test_data"]
+
     for field, val in updates.items():
         setattr(lecture, field, val)
 
@@ -206,7 +221,13 @@ def get_lecture_transcripts(
             .order_by(TranscriptSegment.start_time)
         ).scalars().all()
         dev_segments = [
-            {"id": s.id, "start_time": s.start_time, "end_time": s.end_time, "text": s.text}
+            {
+                "id": s.id,
+                "start_time": s.start_time,
+                "end_time": s.end_time,
+                "text": s.text,
+                "segment_type": getattr(s, "segment_type", "concept"),
+            }
             for s in segments
         ]
 
@@ -218,7 +239,13 @@ def get_lecture_transcripts(
             .order_by(TranscriptSegment.start_time)
         ).scalars().all()
         rom_segments = [
-            {"id": s.id, "start_time": s.start_time, "end_time": s.end_time, "text": s.text}
+            {
+                "id": s.id,
+                "start_time": s.start_time,
+                "end_time": s.end_time,
+                "text": s.text,
+                "segment_type": getattr(s, "segment_type", "concept"),
+            }
             for s in segments
         ]
 

@@ -17,6 +17,7 @@ class LectureBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
     subject: str = Field(..., min_length=1, max_length=255)
     topic: Optional[str] = Field(None, max_length=255)
+    is_test_data: bool = Field(default=False, description="Explicit flag for test/eval data allowing free tier processing")
 
 
 class LectureCreate(LectureBase):
@@ -27,6 +28,7 @@ class LectureUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=255)
     subject: Optional[str] = Field(None, min_length=1, max_length=255)
     topic: Optional[str] = Field(None, max_length=255)
+    is_test_data: Optional[bool] = None
 
 
 class LectureResponse(BaseModel):
@@ -36,6 +38,7 @@ class LectureResponse(BaseModel):
     topic: Optional[str] = None
     duration_seconds: int = 0
     status: str
+    is_test_data: bool = False
     created_at: str
     updated_at: str
 

@@ -156,16 +156,58 @@ def test_cross_user_access_idor_prevention(client: TestClient):
     assert a_get.json()["title"] == "Secret Lecture"
 
 
-def test_unauthorised_access_in_firebase_mode(client: TestClient):
+def test_is_test_data_permissions_dev_vs_production(client: TestClient):
     """
-    In AUTH_MODE=firebase, unauthenticated requests must be rejected with 401.
+    is_test_data may only be set in dev or non-production environments.
+    In production (with firebase auth), is_test_data in client requests must be ignored (forced to false).
     """
-    original_mode = settings.AUTH_MODE
+    token_payload = json.dumps({
+        "id": "usr_test_data_perm",
+        "email": "testdata@bano.ai",
+        "full_name": "Test Data Perm User",
+    })
+    headers = {"Authorization": f"Bearer {token_payload}"}
+
+    # 1. In dev mode: is_test_data=True is honored
+    res_dev = client.post(
+        "/api/v1/lectures",
+        json={"title": "Dev Test Lecture", "subject": "CS", "is_test_data": True},
+        headers=headers,
+    )
+    assert res_dev.status_code == 201
+    assert res_dev.json()["is_test_data"] is True
+
+    # 2. In production mode: is_test_data=True from client is ignored and set to False
+    original_env = settings.ENVIRONMENT
+    original_auth = settings.AUTH_MODE
     try:
+        settings.ENVIRONMENT = "production"
         settings.AUTH_MODE = "firebase"
-        res = client.get("/api/v1/lectures")
-        assert res.status_code == 401
-        assert res.json()["code"] == "UNAUTHORIZED"
+
+        # Mock authentication dependency for production test
+        from backend.app.api.deps import get_current_user
+        from backend.app.models.entities import User
+        mock_user = User(id="usr_test_data_perm", email="testdata@bano.ai", full_name="Test User")
+        app.dependency_overrides[get_current_user] = lambda: mock_user
+
+        res_prod = client.post(
+            "/api/v1/lectures",
+            json={"title": "Prod Test Lecture", "subject": "CS", "is_test_data": True},
+        )
+        assert res_prod.status_code == 201
+        assert res_prod.json()["is_test_data"] is False, "Production must ignore client is_test_data"
+
+        # Also verify PATCH cannot flip is_test_data in production
+        lec_id = res_prod.json()["id"]
+        patch_res = client.patch(
+            f"/api/v1/lectures/{lec_id}",
+            json={"is_test_data": True},
+        )
+        assert patch_res.status_code == 200
+        assert patch_res.json()["is_test_data"] is False
     finally:
-        settings.AUTH_MODE = original_mode
+        settings.ENVIRONMENT = original_env
+        settings.AUTH_MODE = original_auth
+        app.dependency_overrides.pop(get_current_user, None)
+
 

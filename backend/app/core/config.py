@@ -49,6 +49,31 @@ class Settings(BaseSettings):
     # Transliteration
     TRANSLITERATION_LLM_FALLBACK: bool = False  # Reserved for future LLM-based fallback; not wired in
 
+    # LLM Settings & Pricing Configuration
+    LLM_PROVIDER: Literal["gemini", "openai"] = "gemini"
+    LLM_TIER: Literal["free", "paid"] = "free"
+    
+    # Model IDs
+    GEMINI_DEFAULT_MODEL: str = "gemini-3.1-flash-lite"
+    GEMINI_FALLBACK_MODEL: str = "gemini-3.8-flash"
+    OPENAI_DEFAULT_MODEL: str = "gpt-4o-mini"
+    
+    # API Keys
+    GEMINI_API_KEY: str = ""
+    OPENAI_API_KEY: str = ""
+    
+    # Pricing configuration per 1M tokens (USD)
+    LLM_PRICING_PER_1M: dict[str, dict[str, float]] = {
+        "gemini-3.1-flash-lite": {"input": 0.25, "output": 1.50},
+        "gemini-3.8-flash": {"input": 0.75, "output": 3.75},
+        "gpt-4o-mini": {"input": 0.15, "output": 0.60},
+    }
+    
+    # Prompt Versioning & Chunking
+    LLM_PROMPT_VERSION: str = "v1.0"
+    LLM_CHUNK_MAX_TOKENS: int = 12000  # Conservative segment chunk limit
+    LLM_CHUNK_OVERLAP_TOKENS: int = 500
+
     # Job Execution & Resumption
     MAX_JOB_RETRIES: int = 3
 

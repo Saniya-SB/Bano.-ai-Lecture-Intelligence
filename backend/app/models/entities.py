@@ -45,6 +45,7 @@ class Lecture(Base, TimestampMixin):
     audio_storage_path: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
     mime_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     file_size_bytes: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    is_test_data: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("user_id", "sha256", name="uq_user_lecture_sha256"),

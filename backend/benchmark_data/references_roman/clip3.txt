@@ -1,0 +1,1 @@
+Database mein primary key woh column hota hai jo har row ko unique banata hai. Isme null value nahi ho sakti. Ab foreign key ki baat karein toh woh dusre table ki primary key ko refer karti hai. Isse dono tables ke beech relation banta hai aur data consistent rehta hai.

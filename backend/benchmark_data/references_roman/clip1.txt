@@ -1,0 +1,1 @@
+Aaj hum recursion samjhenge. Jab ek function khud ko call karta hai, toh use recursive call kehte hain. Lekin dhyan rakhna, agar base condition nahi hogi toh stack overflow ho sakta hai. Jaise factorial mein hum n ko n minus one ke factorial se multiply karte hain, aur jab n ek ho jaata hai tab ruk jaate hain.

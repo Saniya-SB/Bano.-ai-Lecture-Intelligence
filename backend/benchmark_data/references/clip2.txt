@@ -1,0 +1,1 @@
+अब binary search tree देखते हैं। इसमें हर node के left child की value छोटी होती है और right child की value बड़ी होती है। इसी वजह से search बहुत fast होता है। Balanced tree में time complexity order of log n होती है, लेकिन अगर tree skewed हो जाए तो worst case में order of n लग सकता है।
