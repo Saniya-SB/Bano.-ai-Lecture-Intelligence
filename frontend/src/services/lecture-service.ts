@@ -41,16 +41,17 @@ export const lectureService = {
   },
 
   /**
-   * Upload mode — Step 1: Initiate upload and receive a lecture record.
+   * Upload mode — uploads an audio file directly to the backend.
    *
    * MOCK: Creates a lecture record via mockStore and simulates upload
    * progress via the onProgress callback. No real file data is sent.
    *
-   * REAL (PROVISIONAL — pending Owais confirmation of Q1):
-   * Currently falls back to POST /lectures. When the backend confirms
-   * the two-step initiate/complete flow (POST /uploads/initiate →
-   * PUT presigned URL → POST /uploads/complete), this stub must be
-   * updated. Do NOT call unconfirmed endpoints here.
+   * REAL: POST /uploads/direct with multipart FormData.
+   * Accepted formats: mp3, wav, mp4, m4a, webm (backend validates via magic bytes).
+   * Size limit: backend returns 413 on exceed.
+   * Returns { lecture_id, job_id, status } — then fetches the lecture record
+   * and returns a full Lecture domain object. Poll GET /jobs/{lecture_id}
+   * for processing progress after this call.
    */
   async uploadFile(
     params: {
@@ -70,26 +71,26 @@ export const lectureService = {
       return mapLectureDtoToDomain(lecture);
     }
 
-    // ── REAL API (provisional stub) ────────────────────────────────────────
-    // Q1: Confirm upload flow — initiate/presigned or direct multipart.
-    // Q2: Confirm accepted MIME types.
-    // Q3: Confirm how size limit is communicated (413 body or header).
-    // Until confirmed, we use a simple multipart POST as a placeholder.
-    // This path is NOT reachable in production until FEATURES.browserRecording
-    // is enabled by confirming the backend contract.
+    // ── REAL API ────────────────────────────────────────────────────────────
+    // POST /uploads/direct — single-request multipart upload.
+    // Returns { lecture_id, job_id, status }. After this, poll
+    // GET /jobs/{lecture_id} for processing progress.
     onProgress?.(10);
     const formData = new FormData();
     formData.append("file", params.file);
     formData.append("title", params.title);
     formData.append("subject", params.subject);
     if (params.topic) formData.append("topic", params.topic);
+    formData.append("source_type", "upload");
 
-    const dto = await apiClient<LectureDto>("/lectures/upload", {
+    const result = await apiClient<{ lecture_id: string; job_id: string; status: string }>("/uploads/direct", {
       method: "POST",
       body: formData,
       // Content-Type is intentionally omitted — apiClient skips it for FormData
     });
     onProgress?.(100);
+    // Fetch the full lecture record to return a Lecture domain object
+    const dto = await apiClient<LectureDto>(`/lectures/${result.lecture_id}`);
     return mapLectureDtoToDomain(dto);
   },
 
@@ -98,9 +99,9 @@ export const lectureService = {
    *
    * MOCK: Same simulation as uploadFile.
    *
-   * REAL (PROVISIONAL — pending Owais confirmation of Q4):
-   * Q4: What codec/container does the backend expect for MediaRecorder output?
-   * Until confirmed this is behind FEATURES.browserRecording = false.
+   * REAL: POST /uploads/direct with source_type="recording".
+   * Accepts webm/ogg from MediaRecorder (backend validates via magic bytes).
+   * Behind FEATURES.browserRecording feature flag.
    */
   async uploadRecording(
     params: {
@@ -120,7 +121,7 @@ export const lectureService = {
       return mapLectureDtoToDomain(lecture);
     }
 
-    // Provisional stub — awaiting Q4 confirmation
+    // POST /uploads/direct with source_type="recording"
     onProgress?.(10);
     const ext = params.mimeType.includes("ogg") ? "ogg" : "webm";
     const file = new File([params.blob], `recording.${ext}`, { type: params.mimeType });
@@ -129,24 +130,26 @@ export const lectureService = {
     formData.append("title", params.title);
     formData.append("subject", params.subject);
     if (params.topic) formData.append("topic", params.topic);
+    formData.append("source_type", "recording");
 
-    const dto = await apiClient<LectureDto>("/lectures/upload", {
+    const result = await apiClient<{ lecture_id: string; job_id: string; status: string }>("/uploads/direct", {
       method: "POST",
       body: formData,
     });
     onProgress?.(100);
+    const dto = await apiClient<LectureDto>(`/lectures/${result.lecture_id}`);
     return mapLectureDtoToDomain(dto);
   },
 
   /**
-   * YouTube mode — submit a YouTube URL for backend caption/audio extraction.
+   * YouTube mode — submit a YouTube URL for backend caption extraction.
    * Frontend never downloads or scrapes video content.
    *
    * MOCK: Creates a lecture record via mockStore.
    *
-   * REAL (PROVISIONAL — pending Owais confirmation of Q5):
-   * Q5: Confirm payload shape (youtube_url, source_type, etc.).
-   * Behind FEATURES.youtubeIngestion = false in production.
+   * REAL: POST /uploads/youtube with FormData { url }.
+   * Backend returns 501 NOT IMPLEMENTED — handled gracefully by the caller.
+   * Behind FEATURES.youtubeIngestion feature flag.
    */
   async createYoutubeLecture(params: {
     title: string;
@@ -163,18 +166,18 @@ export const lectureService = {
       return mapLectureDtoToDomain(dto);
     }
 
-    // Provisional stub — awaiting Q5 confirmation of payload shape
-    const dto = await apiClient<LectureDto>("/lectures", {
+    // POST /uploads/youtube — backend validates URL safety, then raises 501.
+    // This path is behind FEATURES.youtubeIngestion = false by default.
+    // The ApiError with status 501 propagates to the caller.
+    const formData = new FormData();
+    formData.append("url", params.youtubeUrl);
+
+    // Backend returns 501; the resulting ApiError is propagated to the UI layer.
+    const result = await apiClient<{ lecture_id: string; job_id: string; status: string }>("/uploads/youtube", {
       method: "POST",
-      body: JSON.stringify({
-        title: params.title,
-        subject: params.subject,
-        topic: params.topic,
-        // Q5: confirm field names with Owais
-        source_type: "youtube",
-        youtube_url: params.youtubeUrl,
-      }),
+      body: formData,
     });
+    const dto = await apiClient<LectureDto>(`/lectures/${result.lecture_id}`);
     return mapLectureDtoToDomain(dto);
   },
 
