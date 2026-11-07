@@ -1,19 +1,33 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Transcript, ScriptMode } from "@/types/domain/transcript";
+import { Transcript, ScriptMode, SegmentType } from "@/types/domain/transcript";
 import { ScriptSelector } from "./script-selector";
 import { TranscriptSearchBar } from "./transcript-search-bar";
 import { formatTimestamp } from "@/lib/formatters";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, FileText } from "lucide-react";
+import {
+  Copy,
+  Check,
+  FileText,
+  ChevronDown,
+  ChevronRight,
+  Megaphone,
+  Coffee,
+  BookOpen,
+  Sparkles,
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface TranscriptViewerProps {
   transcript: Transcript;
+  onTimestampClick?: (timestampSeconds: number) => void;
 }
 
-export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
+export function TranscriptViewer({
+  transcript,
+  onTimestampClick,
+}: TranscriptViewerProps) {
   // Client-side script preference
   const defaultScript: ScriptMode = transcript.availableScripts.includes("devanagari")
     ? "devanagari"
@@ -22,6 +36,16 @@ export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const [copied, setCopied] = useState(false);
+
+  // Collapsed off-topic segments state
+  const [isOffTopicExpanded, setIsOffTopicExpanded] = useState<Record<string, boolean>>({});
+
+  const toggleOffTopicCollapse = (segmentId: string) => {
+    setIsOffTopicExpanded((prev) => ({
+      ...prev,
+      [segmentId]: !prev[segmentId],
+    }));
+  };
 
   // Compute matches
   const { segmentsWithMatches, totalMatches } = useMemo(() => {
@@ -120,6 +144,37 @@ export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
     );
   };
 
+  // Helper badge for segment classification
+  const renderSegmentBadge = (type?: SegmentType) => {
+    switch (type) {
+      case "off_topic":
+        return (
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-bano-text-subtle bg-bano-surface-sunken px-2 py-0.5 rounded-full border border-border">
+            <Coffee className="h-3 w-3" /> Off-Topic
+          </span>
+        );
+      case "admin":
+        return (
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-bano-accent bg-bano-accent-soft px-2 py-0.5 rounded-full">
+            <Megaphone className="h-3 w-3" /> Announcement
+          </span>
+        );
+      case "example":
+        return (
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-bano-info bg-bano-info-soft px-2 py-0.5 rounded-full">
+            <Sparkles className="h-3 w-3" /> Example
+          </span>
+        );
+      case "concept":
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-bano-text-muted bg-bano-surface-sunken px-2 py-0.5 rounded-full">
+            <BookOpen className="h-3 w-3" /> Concept
+          </span>
+        );
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Top Toolbar */}
@@ -196,29 +251,86 @@ export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
                 : segment.textRoman;
 
             const isDevanagari = currentScript === "devanagari";
+            const isOffTopic = segment.segmentType === "off_topic";
+            const isAdmin = segment.segmentType === "admin";
+            const isExpanded = isOffTopicExpanded[segment.id] ?? false;
 
             return (
               <div
                 key={segment.id}
                 style={{ contentVisibility: "auto" }}
-                className="group flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-4 p-3 rounded-md hover:bg-card/70 transition-colors"
+                className={`group flex flex-col p-3 rounded-md transition-colors border ${
+                  isOffTopic
+                    ? "bg-card/40 border-dashed border-border opacity-70"
+                    : isAdmin
+                    ? "bg-bano-accent-soft/20 border-bano-accent/20"
+                    : "hover:bg-card/70 border-transparent"
+                }`}
               >
-                {/* Timestamp */}
-                <div className="shrink-0 font-mono text-xs text-bano-text-subtle select-none font-medium sm:w-20">
-                  {formatTimestamp(segment.startTime)}
+                {/* Segment Header: Timestamp + Classification Badge + Optional Collapse */}
+                <div className="flex items-center justify-between pb-1 gap-2">
+                  <div className="flex items-center gap-2">
+                    {onTimestampClick ? (
+                      <button
+                        type="button"
+                        onClick={() => onTimestampClick(segment.startTime)}
+                        className="font-mono text-xs text-bano-accent hover:underline font-medium select-none"
+                        title="Jump to timestamp"
+                      >
+                        {formatTimestamp(segment.startTime)}
+                      </button>
+                    ) : (
+                      <span className="font-mono text-xs text-bano-text-subtle select-none font-medium">
+                        {formatTimestamp(segment.startTime)}
+                      </span>
+                    )}
+
+                    {renderSegmentBadge(segment.segmentType)}
+                  </div>
+
+                  {/* Off-topic collapse toggle */}
+                  {isOffTopic && (
+                    <button
+                      type="button"
+                      onClick={() => toggleOffTopicCollapse(segment.id)}
+                      className="inline-flex items-center gap-1 text-[11px] text-bano-text-muted hover:text-foreground font-medium"
+                      aria-expanded={isExpanded}
+                      aria-label={isExpanded ? "Collapse off-topic segment" : "Expand off-topic segment"}
+                    >
+                      {isExpanded ? (
+                        <>
+                          <span>Collapse</span>
+                          <ChevronDown className="h-3 w-3" />
+                        </>
+                      ) : (
+                        <>
+                          <span>Show off-topic talk</span>
+                          <ChevronRight className="h-3 w-3" />
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
 
-                {/* Text Body */}
-                <div
-                  lang={isDevanagari ? "hi" : "hi-Latn"}
-                  className={`flex-1 text-foreground leading-relaxed ${
-                    isDevanagari
-                      ? "font-devanagari text-base"
-                      : "font-sans text-sm"
-                  }`}
-                >
-                  {renderHighlightedText(rawText)}
-                </div>
+                {/* Text Body (Collapsed if off-topic and not toggled) */}
+                {(!isOffTopic || isExpanded) ? (
+                  <div
+                    lang={isDevanagari ? "hi" : "hi-Latn"}
+                    className={`mt-1 text-foreground leading-relaxed ${
+                      isOffTopic ? "italic text-bano-text-muted text-sm" : ""
+                    } ${
+                      isDevanagari
+                        ? "font-devanagari text-base"
+                        : "font-sans text-sm"
+                    }`}
+                  >
+                    {renderHighlightedText(rawText)}
+                  </div>
+                ) : (
+                  <p className="mt-0.5 text-xs text-bano-text-subtle italic">
+                    Off-topic discussion hidden ({formatTimestamp(segment.startTime)} - {formatTimestamp(segment.endTime)}). Click &ldquo;Show off-topic talk&rdquo; to expand.
+                  </p>
+                )}
               </div>
             );
           })

@@ -1,6 +1,7 @@
-import { env } from "@/config/env";
+﻿import { env } from "@/config/env";
 import { LectureDto, JobDto, UserDto } from "@/types/api/common";
-import { MOCK_LECTURES, MOCK_JOBS, MOCK_USER, MOCK_TRANSCRIPTS } from "./fixtures";
+import { MOCK_LECTURES, MOCK_JOBS, MOCK_USER, MOCK_TRANSCRIPTS, MOCK_LEARNING_MATERIALS, MOCK_QUIZ_TEMPLATES } from "./fixtures";
+import { LearningMaterialsDto, QuizDto } from "@/types/api/materials";
 import { TranscriptDto } from "@/types/api/transcript";
 import { ApiError } from "@/types/domain/common";
 
@@ -18,6 +19,8 @@ class MockStore {
   private lectures: LectureDto[] = [];
   private jobs: Record<string, JobDto> = {};
   private transcripts: Record<string, TranscriptDto> = {};
+  private materials: Record<string, LearningMaterialsDto> = {};
+  private quizzes: Record<string, QuizDto> = {};
   private currentUser: UserDto | null = null;
   private isAuthenticated = true;
   private readonly USER_STORAGE_KEY= "bano_mock_user";
@@ -33,6 +36,7 @@ class MockStore {
     this.lectures = [...MOCK_LECTURES];
     this.jobs = { ...MOCK_JOBS };
     this.transcripts = { ...MOCK_TRANSCRIPTS };
+    this.materials = { ...MOCK_LEARNING_MATERIALS };
     this.currentUser = { ...MOCK_USER };
     this.isAuthenticated = true;
   }
@@ -303,6 +307,42 @@ if (storedAuth !== null) {
     if (lec) lec.status = "processing";
     this.persistState();
     return { ...job };
+  }
+
+  async getLearningMaterials(lectureId: string): Promise<LearningMaterialsDto | null> {
+    await simulateLatency();
+    this.checkErrors();
+
+    if (env.MOCK_SCENARIO === "empty") {
+      return null;
+    }
+
+    return this.materials[lectureId] || null;
+  }
+
+  async generateQuiz(lectureId: string, numQuestions = 5): Promise<QuizDto> {
+    await simulateLatency();
+    this.checkErrors();
+
+    const boundedCount = Math.min(15, Math.max(1, numQuestions));
+    const selected = MOCK_QUIZ_TEMPLATES.slice(0, boundedCount);
+
+    const quiz: QuizDto = {
+      lecture_id: lectureId,
+      is_ai_generated: true,
+      disclaimer: "This quiz is AI-generated from the lecture audio transcript.",
+      questions: selected,
+    };
+
+    this.quizzes[lectureId] = quiz;
+    return quiz;
+  }
+
+  async getQuiz(lectureId: string): Promise<QuizDto | null> {
+    await simulateLatency();
+    this.checkErrors();
+
+    return this.quizzes[lectureId] || null;
   }
 
   async getTranscript(lectureId: string): Promise<TranscriptDto | null> {
