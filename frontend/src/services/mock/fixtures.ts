@@ -1,4 +1,4 @@
-import { LectureDto, JobDto, UserDto } from "@/types/api/common";
+﻿import { LectureDto, JobDto, UserDto } from "@/types/api/common";
 
 export const MOCK_USER: UserDto = {
   id: "usr_mock_1",
@@ -118,5 +118,119 @@ export const MOCK_JOBS: Record<string, JobDto> = {
     error_message: "Audio stream was truncated or corrupted during upload.",
     created_at: "2026-11-03T16:00:00Z",
     updated_at: "2026-11-03T16:05:00Z",
+  },
+};
+
+export const MOCK_TRANSCRIPTS: Record<string, import("@/types/api/transcript").TranscriptDto> = {
+  lec_101: {
+    id: "tr_101",
+    lecture_id: "lec_101",
+    available_scripts: ["devanagari", "roman"],
+    segments: [
+      {
+        id: "seg_101_1",
+        segment_index: 0,
+        start_time: 0,
+        end_time: 8.5,
+        text_devanagari: "हेलो एवरीवन, आज हम डेटा स्ट्रक्चर्स में बाइनरी सर्च ट्री यानी BST के बारे में बात करेंगे।",
+        text_roman: "Hello everyone, aaj hum Data Structures mein Binary Search Tree yaani BST ke baare mein baat karenge.",
+        speaker_label: "Instructor",
+        confidence: 0.98,
+      },
+      {
+        id: "seg_101_2",
+        segment_index: 1,
+        start_time: 8.5,
+        end_time: 19.2,
+        text_devanagari: "तो सबसे पहले समझिए कि हर नोड के पास एट मोस्ट दो चिल्ड्रेन हो सकते हैं: लेफ्ट चाइल्ड और राइट चाइल्ड।",
+        text_roman: "Toh sabse pehle samajhiye ki har node ke paas at most do children ho sakte hain: left child aur right child.",
+        speaker_label: "Instructor",
+        confidence: 0.95,
+      },
+      {
+        id: "seg_101_3",
+        segment_index: 2,
+        start_time: 19.2,
+        end_time: 32.4,
+        text_devanagari: "BST की की-प्रॉपर्टी यह है कि लेफ्ट सबट्री की सारी वैल्यूज़ रूट नोड से छोटी होनी चाहिए, और राइट सबट्री की वैल्यूज़ बड़ी।",
+        text_roman: "BST ki key-property yeh hai ki left subtree ki saari values root node se chhoti honi chahiye, aur right subtree ki values badi.",
+        speaker_label: "Instructor",
+        confidence: 0.97,
+      },
+      {
+        id: "seg_101_4",
+        segment_index: 3,
+        start_time: 32.4,
+        end_time: 45.0,
+        text_devanagari: "अगर यह कंडीशन हर नोड पर सेटिस्फाई होती है, तो इन-ऑर्डर ट्रैवर्सल आपको हमेशा सॉर्टेड सीक्वेंस देगा।",
+        text_roman: "Agar yeh condition har node par satisfy hoti hai, toh in-order traversal aapko hamesha sorted sequence dega.",
+        speaker_label: "Instructor",
+        confidence: 0.96,
+      },
+      {
+        id: "seg_101_5",
+        segment_index: 4,
+        start_time: 45.0,
+        end_time: 58.7,
+        text_devanagari: "टाइम कॉम्प्लेक्सिटी की बात करें तो एवरेज केस में सर्च, इंसर्शन और डिलीशन O(log n) लेते हैं।",
+        text_roman: "Time complexity ki baat karein toh average case mein search, insertion aur deletion O(log n) lete hain.",
+        speaker_label: "Instructor",
+        confidence: 0.99,
+      },
+      {
+        id: "seg_101_6",
+        segment_index: 5,
+        start_time: 58.7,
+        end_time: 72.0,
+        text_devanagari: "लेकिन वर्स्ट केस में, अगर ट्री स्क्यूड हो जाए जैसे कि सॉर्टेड इनपुट पर, तो कॉम्प्लेक्सिटी O(n) तक डीग्रेड हो सकती है।",
+        text_roman: "Lekin worst case mein, agar tree skewed ho jaaye jaise ki sorted input par, toh complexity O(n) tak degrade ho sakti hai.",
+        speaker_label: "Instructor",
+        confidence: 0.94,
+      },
+    ],
+  },
+  lec_102: {
+    id: "tr_102",
+    lecture_id: "lec_102",
+    available_scripts: ["devanagari", "roman"],
+    segments: [
+      {
+        id: "seg_102_1",
+        segment_index: 0,
+        start_time: 0,
+        end_time: 12.0,
+        text_devanagari: "आज के ऑपरेटिंग सिस्टम लेक्चर में हम सीपीयू शेड्यूलिंग और राउंड रॉबिन एल्गोरिदम पढ़ेंगे।",
+        text_roman: "Aaj ke Operating System lecture mein hum CPU scheduling aur Round Robin algorithm padhenge.",
+        speaker_label: "Instructor",
+        confidence: 0.96,
+      },
+      {
+        id: "seg_102_2",
+        segment_index: 1,
+        start_time: 12.0,
+        end_time: 25.5,
+        text_devanagari: "राउंड रॉबिन एक प्रिएम्प्टिव शेड्यूलिंग एल्गोरिदम है जहाँ हर प्रोसेस को एक फिक्स्ड टाइम क्वांटम मिलता है।",
+        text_roman: "Round Robin ek preemptive scheduling algorithm hai jahan har process ko ek fixed time quantum milta hai.",
+        speaker_label: "Instructor",
+        confidence: 0.97,
+      },
+    ],
+  },
+  lec_single_script: {
+    id: "tr_single",
+    lecture_id: "lec_single_script",
+    available_scripts: ["roman"],
+    segments: [
+      {
+        id: "seg_single_1",
+        segment_index: 0,
+        start_time: 0,
+        end_time: 10.0,
+        text_devanagari: "",
+        text_roman: "Only Roman script is available for this demo recording.",
+        speaker_label: "Instructor",
+        confidence: 0.92,
+      },
+    ],
   },
 };
