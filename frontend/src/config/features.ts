@@ -13,6 +13,18 @@ export interface FeatureFlags {
   quota: boolean;
   resetPasswordConfirm: boolean;
   serverSideListQuery: boolean;
+  /**
+   * Browser audio recording via MediaRecorder.
+   * Real-API path is behind this flag until Owais confirms the expected
+   * audio format, endpoint, and upload payload contract.
+   */
+  browserRecording: boolean;
+  /**
+   * YouTube URL ingestion.
+   * Real-API path is behind this flag until Owais confirms the request
+   * payload shape (youtube_url field, source_type, etc.).
+   */
+  youtubeIngestion: boolean;
 }
 
 const mockFlags: FeatureFlags = {
@@ -28,6 +40,8 @@ const mockFlags: FeatureFlags = {
   quota: true,
   resetPasswordConfirm: true,
   serverSideListQuery: false,
+  browserRecording: true,
+  youtubeIngestion: true,
 };
 
 const defaultFlags: FeatureFlags = {
@@ -43,6 +57,9 @@ const defaultFlags: FeatureFlags = {
   quota: false,
   resetPasswordConfirm: false,
   serverSideListQuery: false,
+  // Hidden behind flags until backend confirms contracts (see Questions Q4–Q6)
+  browserRecording: false,
+  youtubeIngestion: false,
 };
 
 export const getFeatureFlags = (): FeatureFlags => {
