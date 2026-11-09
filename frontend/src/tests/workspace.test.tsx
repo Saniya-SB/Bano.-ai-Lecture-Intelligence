@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { LectureWorkspaceInner } from "@/features/workspace/components/lecture-workspace-inner";
@@ -38,6 +38,12 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/hooks/use-lectures", () => ({
   useLectures: () => ({
     lectures: [mockLecture, mockIncompleteLecture],
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+  useLecture: (id: string) => ({
+    lecture: [mockLecture, mockIncompleteLecture].find((l) => l.id === id) ?? mockLecture,
     isLoading: false,
     isError: false,
     refetch: vi.fn(),

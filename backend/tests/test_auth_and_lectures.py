@@ -211,3 +211,39 @@ def test_is_test_data_permissions_dev_vs_production(client: TestClient):
         app.dependency_overrides.pop(get_current_user, None)
 
 
+def test_create_then_fetch_immediate_consistency(client: TestClient):
+    """
+    Test create-then-fetch: Ensure that right after creating a lecture,
+    immediate GET by ID and GET in list return 200 with matching properties,
+    and DB transaction has committed properly.
+    """
+    token = json.dumps({"id": "usr_immediate_fetch", "email": "immed@bano.ai", "full_name": "Immediate User"})
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create_payload = {
+        "title": "Operating Systems - Virtual Memory",
+        "subject": "Computer Science",
+        "topic": "Paging",
+        "is_test_data": True,
+    }
+    create_res = client.post("/api/v1/lectures", json=create_payload, headers=headers)
+    assert create_res.status_code == 201
+    created_data = create_res.json()
+    lecture_id = created_data["id"]
+
+    # Immediate fetch by ID
+    get_res = client.get(f"/api/v1/lectures/{lecture_id}", headers=headers)
+    assert get_res.status_code == 200
+    fetched_data = get_res.json()
+    assert fetched_data["id"] == lecture_id
+    assert fetched_data["title"] == create_payload["title"]
+    assert fetched_data["subject"] == create_payload["subject"]
+
+    # Immediate list fetch contains it
+    list_res = client.get("/api/v1/lectures", headers=headers)
+    assert list_res.status_code == 200
+    ids = [item["id"] for item in list_res.json()]
+    assert lecture_id in ids
+
+
+

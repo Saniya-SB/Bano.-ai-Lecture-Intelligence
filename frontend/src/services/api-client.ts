@@ -2,6 +2,7 @@ import { env } from "@/config/env";
 import { ApiError } from "@/types/domain/common";
 import { ApiErrorKind, getErrorMessage } from "@/lib/error-messages";
 import { ApiErrorDto } from "@/types/api/common";
+import { authManager } from "./auth-provider";
 
 export interface RequestOptions extends RequestInit {
   timeoutMs?: number;
@@ -104,15 +105,17 @@ export async function apiClient<T>(
   options: RequestOptions = {}
 ): Promise<T> {
   const {
-    timeoutMs = 15000,
+    timeoutMs = 20000,
     retries = options.method === "GET" || !options.method ? 2 : 0,
+    skipAuth = false,
     headers: customHeaders = {},
     ...customOptions
   } = options;
 
+  const baseUrl = env.API_URL || env.API_BASE_URL;
   const url = endpoint.startsWith("http")
     ? endpoint
-    : `${env.API_BASE_URL.replace(/\/$/, "")}/${endpoint.replace(/^\//, "")}`;
+    : `${baseUrl.replace(/\/$/, "")}/${endpoint.replace(/^\//, "")}`;
 
   let attemptsLeft = retries + 1;
   let lastError: unknown = null;
@@ -129,6 +132,14 @@ export async function apiClient<T>(
       }
       if (!headers.has("Accept")) {
         headers.set("Accept", "application/json");
+      }
+
+      // Automatically attach Bearer auth token if available and not skipped
+      if (!skipAuth && !headers.has("Authorization")) {
+        const token = await authManager.getValidToken();
+        if (token) {
+          headers.set("Authorization", `Bearer ${token}`);
+        }
       }
 
       const response = await fetch(url, {

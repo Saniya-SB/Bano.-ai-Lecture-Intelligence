@@ -1,26 +1,44 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { LearningMaterials } from "@/types/domain/materials";
 import { Card } from "@/components/ui/card";
-import { formatTimestamp } from "@/lib/formatters";
-import { FileText, Clock, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { FileText, AlertCircle, Download, Loader2 } from "lucide-react";
+import { lectureService } from "@/services/lecture-service";
+import { toast } from "sonner";
 
 interface NotesTabProps {
   materials: LearningMaterials | null;
+  lectureTitle?: string;
+  lectureId?: string;
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
-  onTimestampClick?: (seconds: number) => void;
 }
 
 export function NotesTab({
   materials,
+  lectureTitle = "Lecture",
+  lectureId,
   isLoading,
   isError,
   onRetry,
-  onTimestampClick,
 }: NotesTabProps) {
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportPdf = async () => {
+    if (!lectureId || isExporting) return;
+    setIsExporting(true);
+    try {
+      await lectureService.exportNotesPdf(lectureId, lectureTitle);
+      toast.success("Notes PDF export ho gaya!");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "PDF export karne mein samasya aayi.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
   if (isLoading) {
     return (
       <div className="space-y-4 animate-pulse">
@@ -68,41 +86,41 @@ export function NotesTab({
 
   return (
     <div className="space-y-6">
-      {/* AI disclaimer */}
-      <div className="p-3 bg-bano-surface-sunken rounded-lg border border-border text-xs text-bano-text-muted flex items-start gap-2">
-        <FileText className="h-4 w-4 text-bano-accent shrink-0 mt-0.5" />
-        <span>{materials.disclaimer}</span>
+      {/* AI disclaimer & Export Button */}
+      <div className="p-3 bg-bano-surface-sunken rounded-md border border-border text-xs text-bano-text flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-start gap-2">
+          <span className="font-semibold px-1.5 py-0.5 rounded bg-bano-accent/20 text-bano-text text-[11px] shrink-0">
+            AI ne banaya, teacher ka exact statement nahi.
+          </span>
+          <span className="text-bano-text-muted mt-0.5">{materials.disclaimer}</span>
+        </div>
+        
+        {lectureId && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleExportPdf}
+            disabled={isExporting}
+            className="self-start sm:self-auto shrink-0 gap-1.5 border-border bg-card text-foreground hover:bg-bano-surface-sunken text-xs h-8"
+          >
+            {isExporting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Download className="h-3.5 w-3.5 text-bano-accent" />
+            )}
+            Export notes (PDF)
+          </Button>
+        )}
       </div>
 
       {/* Notes list */}
       <div className="space-y-4">
         {materials.notes.map((note, idx) => (
           <Card key={idx} className="p-6 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border pb-3">
-              <h3 className="font-heading font-semibold text-base text-foreground">
-                {note.heading}
-              </h3>
-
-              {/* Timestamp references */}
-              {note.referencedTimeRanges && note.referencedTimeRanges.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[11px] text-bano-text-subtle flex items-center gap-1">
-                    <Clock className="h-3 w-3" /> Mentioned at:
-                  </span>
-                  {note.referencedTimeRanges.map((range, rIdx) => (
-                    <button
-                      key={rIdx}
-                      type="button"
-                      onClick={() => onTimestampClick?.(range.start)}
-                      className="font-mono text-[11px] px-2 py-0.5 rounded bg-bano-surface-sunken text-bano-accent hover:underline border border-border"
-                      title="Jump to transcript timestamp"
-                    >
-                      {formatTimestamp(range.start)} - {formatTimestamp(range.end)}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <h3 className="font-heading font-semibold text-base text-foreground border-b border-border pb-3">
+              {note.heading}
+            </h3>
 
             {/* Bullet points */}
             <ul className="space-y-2 text-sm text-foreground leading-relaxed list-disc list-inside">

@@ -24,6 +24,7 @@ export function mapTranscriptSegmentDtoToDomain(
     segmentIndex: typeof dto.segment_index === "number" ? dto.segment_index : indexFallback,
     startTime: Number(dto.start_time) || 0,
     endTime: Number(dto.end_time) || 0,
+    // Contract primary field is `text`; fall back to explicit script fields.
     textDevanagari: dto.text_devanagari ?? dto.text ?? "",
     textRoman: dto.text_roman ?? dto.text ?? "",
     segmentType: normalizeSegmentType(dto.segment_type),
@@ -33,7 +34,7 @@ export function mapTranscriptSegmentDtoToDomain(
 }
 
 export function mapTranscriptDtoToDomain(dto: TranscriptDto): Transcript {
-  // If segments array is provided directly (M5 format)
+  // If segments array is provided directly (alternative backend format)
   if (Array.isArray(dto.segments) && dto.segments.length > 0) {
     return {
       id: dto.id,
@@ -43,7 +44,8 @@ export function mapTranscriptDtoToDomain(dto: TranscriptDto): Transcript {
     };
   }
 
-  // If split into roman_segments and devanagari_segments (API proposal format)
+  // Contract format: split into devanagari_segments and roman_segments.
+  // Each array's `text` field carries the script-appropriate text.
   const romanSegs = dto.roman_segments || [];
   const devanagariSegs = dto.devanagari_segments || [];
   const count = Math.max(romanSegs.length, devanagariSegs.length);
@@ -60,8 +62,10 @@ export function mapTranscriptDtoToDomain(dto: TranscriptDto): Transcript {
       segmentIndex: i,
       startTime: Number(base.start_time) || 0,
       endTime: Number(base.end_time) || 0,
-      textDevanagari: d?.text || d?.text_devanagari || r?.text_devanagari || "",
-      textRoman: r?.text || r?.text_roman || d?.text_roman || "",
+      // Devanagari segment's `text` is the Devanagari script text
+      textDevanagari: d?.text_devanagari ?? d?.text ?? r?.text_devanagari ?? "",
+      // Roman segment's `text` is the Roman script text
+      textRoman: r?.text_roman ?? r?.text ?? d?.text_roman ?? "",
       segmentType: normalizeSegmentType(base.segment_type || r?.segment_type || d?.segment_type),
       speakerLabel: base.speaker_label,
       confidence: base.confidence,

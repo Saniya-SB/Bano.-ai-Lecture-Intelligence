@@ -164,6 +164,8 @@ async def complete_upload(
                 message="Lecture not found",
                 code="NOT_FOUND",
             )
+    is_dev_test = settings.DEV_MARK_UPLOADS_AS_TEST and settings.ENVIRONMENT != "production"
+
     lecture = Lecture(
         id=lecture_id,
         user_id=current_user.id,
@@ -176,6 +178,7 @@ async def complete_upload(
         mime_type=session.get("mime_type"),
         file_size_bytes=session.get("file_size"),
         audio_storage_path=storage_path,
+        is_test_data=is_dev_test,
     )
     db.add(lecture)
     db.flush()
@@ -245,6 +248,8 @@ async def direct_upload(
     dest_path = f"audio/{current_user.id}/{lecture_id}_{safe_filename}"
     storage_path = storage.save_file(io.BytesIO(file_bytes), dest_path)
 
+    is_dev_test = settings.DEV_MARK_UPLOADS_AS_TEST and settings.ENVIRONMENT != "production"
+
     lec_source = LectureSourceType.RECORDING.value if source_type == "recording" else LectureSourceType.UPLOAD.value
     lecture = Lecture(
         id=lecture_id,
@@ -258,6 +263,7 @@ async def direct_upload(
         mime_type=file.content_type,
         file_size_bytes=len(file_bytes),
         audio_storage_path=storage_path,
+        is_test_data=is_dev_test,
     )
     db.add(lecture)
     db.flush()

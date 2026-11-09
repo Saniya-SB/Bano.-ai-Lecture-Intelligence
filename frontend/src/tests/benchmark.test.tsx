@@ -12,10 +12,13 @@ const mockSampleResults: BenchmarkModelResult[] = [
     wer: 14.2,
     cer: 7.8,
     technicalTermAccuracy: 91.5,
-    processingTimeSec: 142,
-    estimatedCostUsd: 0.12,
+    meanLatency: 4.73,
+    minLatency: 4.10,
+    maxLatency: 5.50,
+    totalCost: 0.12,
     isEstimated: false,
-    notes: "Fine-tuned on 120h bilingual engineering lectures.",
+    source: "empirical",
+    license: "MIT (fine-tune checkpoint)",
   },
   {
     modelId: "m_conformer",
@@ -23,10 +26,13 @@ const mockSampleResults: BenchmarkModelResult[] = [
     wer: 18.7,
     cer: 9.6,
     technicalTermAccuracy: 84.0,
-    processingTimeSec: 98,
-    estimatedCostUsd: null, // Partial metric test
+    meanLatency: 3.27,
+    minLatency: 2.90,
+    maxLatency: 3.80,
+    totalCost: null, // Partial metric test
     isEstimated: true,
-    notes: "Edge-deployable lightweight architecture.",
+    source: "estimated",
+    license: "Apache 2.0",
   },
 ];
 
@@ -38,6 +44,7 @@ describe("M7 Benchmark Page Component", () => {
   it("renders empty state when there are 0 benchmark results", () => {
     vi.spyOn(benchmarkHook, "useBenchmark").mockReturnValue({
       results: [],
+      details: [],
       isLoading: false,
       isError: false,
       error: null,
@@ -55,6 +62,7 @@ describe("M7 Benchmark Page Component", () => {
   it("renders loading state with skeleton placeholders", () => {
     vi.spyOn(benchmarkHook, "useBenchmark").mockReturnValue({
       results: [],
+      details: [],
       isLoading: true,
       isError: false,
       error: null,
@@ -70,6 +78,7 @@ describe("M7 Benchmark Page Component", () => {
     const mockRefetch = vi.fn();
     vi.spyOn(benchmarkHook, "useBenchmark").mockReturnValue({
       results: [],
+      details: [],
       isLoading: false,
       isError: true,
       error: new Error("Network timeout fetching benchmark results"),
@@ -94,6 +103,7 @@ describe("M7 Benchmark Page Component", () => {
   it("renders comparison table with backend-returned metrics and handles missing metrics cleanly", () => {
     vi.spyOn(benchmarkHook, "useBenchmark").mockReturnValue({
       results: mockSampleResults,
+      details: [],
       isLoading: false,
       isError: false,
       error: null,
@@ -125,6 +135,7 @@ describe("M7 Benchmark Page Component", () => {
   it("allows inspecting a specific model detail card", () => {
     vi.spyOn(benchmarkHook, "useBenchmark").mockReturnValue({
       results: mockSampleResults,
+      details: [],
       isLoading: false,
       isError: false,
       error: null,

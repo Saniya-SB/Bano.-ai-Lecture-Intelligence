@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Type, TypeVar
+from typing import Any, Type, TypeVar, Optional
 import json
 import logging
 from pydantic import BaseModel, ValidationError
@@ -22,10 +22,12 @@ class LLMResponse:
         completion_tokens: int,
         total_tokens: int,
         estimated_cost_usd: float,
+        provider_name: str = "generic",
     ):
         self.parsed = parsed
         self.raw_text = raw_text
         self.model_name = model_name
+        self.provider_name = provider_name
         self.prompt_tokens = prompt_tokens
         self.completion_tokens = completion_tokens
         self.total_tokens = total_tokens
@@ -36,6 +38,8 @@ class LLMProvider(ABC):
     """
     Abstract interface for provider-independent LLM completion with structured output decoding.
     """
+
+    provider_name: str = "generic"
 
     @abstractmethod
     async def generate_structured(
@@ -48,54 +52,21 @@ class LLMProvider(ABC):
     ) -> LLMResponse:
         pass
 
-    def calculate_cost(self, model_name: str, prompt_tokens: int, completion_tokens: int) -> float:
-        pricing = settings.LLM_PRICING_PER_1M.get(
-            model_name,
-            settings.LLM_PRICING_PER_1M.get("gemini-3.1-flash-lite", {"input": 0.25, "output": 1.50})
-        )
-        cost_in = (prompt_tokens / 1_000_000.0) * pricing["input"]
-        cost_out = (completion_tokens / 1_000_000.0) * pricing["output"]
-        return round(cost_in + cost_out, 6)
-
-
-import copy
-
-
-def dereference_json_schema(schema: dict) -> dict:
-    """
-    Recursively inlines all $ref definitions from $defs into the schema,
-    removing $defs entirely. Gemini's REST API generates 400 INVALID_ARGUMENT
-    when $defs and $ref are sent in response_schema.
-    """
-    defs = schema.get("$defs", {})
-
-    def _resolve(node):
-        if isinstance(node, dict):
-            if "$ref" in node:
-                ref_path = node["$ref"]
-                if ref_path.startswith("#/$defs/"):
-                    def_name = ref_path.split("/")[-1]
-                    if def_name in defs:
-                        return _resolve(copy.deepcopy(defs[def_name]))
-            return {k: _resolve(v) for k, v in node.items() if k != "$defs"}
-        elif isinstance(node, list):
-            return [_resolve(item) for item in node]
-        return node
-
-    clean = _resolve(copy.deepcopy(schema))
-    clean.pop("$defs", None)
-    return clean
+    def calculate_cost(self, model: str, prompt_tokens: int, completion_tokens: int) -> float:
+        pricing = settings.LLM_PRICING_PER_1M.get(model)
+        if not pricing:
+            return 0.0
+        input_cost = (prompt_tokens / 1_000_000) * pricing["input"]
+        output_cost = (completion_tokens / 1_000_000) * pricing["output"]
+        return round(input_cost + output_cost, 6)
 
 
 class GeminiProvider(LLMProvider):
-    """
-    Adapter for Google Gemini API via REST (ai.google.dev / Google AI Studio endpoints).
-    """
+    provider_name: str = "gemini"
 
     def __init__(self, api_key: str | None = None, http_client: httpx.AsyncClient | None = None):
         self.api_key = api_key or settings.GEMINI_API_KEY
-        self.http_client = http_client or httpx.AsyncClient(timeout=120.0)
-        self.base_url = "https://generativelanguage.googleapis.com/v1beta"
+        self.http_client = http_client or httpx.AsyncClient(timeout=60.0)
 
     async def generate_structured(
         self,
@@ -105,19 +76,24 @@ class GeminiProvider(LLMProvider):
         model_name: str | None = None,
         temperature: float = 0.2,
     ) -> LLMResponse:
-        model = model_name or settings.GEMINI_DEFAULT_MODEL
-        url = f"{self.base_url}/models/{model}:generateContent"
-        headers = {
-            "x-goog-api-key": self.api_key,
-            "Content-Type": "application/json",
-        }
+        if not self.api_key:
+            raise AppException(
+                status_code=500,
+                message="GEMINI_API_KEY is not configured",
+                code="CONFIG_ERROR"
+            )
 
-        schema = dereference_json_schema(response_model.model_json_schema())
+        model = model_name or settings.GEMINI_DEFAULT_MODEL
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={self.api_key}"
+
+        schema = response_model.model_json_schema()
+        cleaned_schema = self._clean_schema_for_gemini(schema)
+
         req_body = {
             "contents": [
                 {
                     "role": "user",
-                    "parts": [{"text": prompt}]
+                    "parts": [{"text": prompt}],
                 }
             ],
             "system_instruction": {
@@ -126,9 +102,11 @@ class GeminiProvider(LLMProvider):
             "generationConfig": {
                 "temperature": temperature,
                 "response_mime_type": "application/json",
-                "response_schema": schema,
-            }
+                "response_schema": cleaned_schema,
+            },
         }
+
+        headers = {"Content-Type": "application/json"}
 
         async def _call_api(body: dict) -> httpx.Response:
             try:
@@ -138,97 +116,113 @@ class GeminiProvider(LLMProvider):
                 logger.error(f"Gemini API request network failure: {exc}")
                 raise AppException(
                     status_code=502,
-                    message="Gemini API communication failure",
+                    message=f"Gemini API communication failure: {str(exc)}",
                     code="LLM_COMMUNICATION_ERROR"
                 )
 
         response = await _call_api(req_body)
 
-        if response.status_code != 200:
-            logger.error(f"Gemini API error (HTTP {response.status_code}): {response.text}")
-            raise AppException(
-                status_code=502,
-                message=f"Gemini API error (HTTP {response.status_code})",
-                code="LLM_PROVIDER_ERROR"
-            )
+        if response.status_code == 429:
+            raise AppException(status_code=429, message="Gemini rate limit exceeded", code="LLM_RATE_LIMIT")
+        elif response.status_code >= 500:
+            raise AppException(status_code=502, message=f"Gemini server error: {response.text}", code="LLM_PROVIDER_ERROR")
+        elif response.status_code != 200:
+            raise AppException(status_code=response.status_code, message=f"Gemini API error: {response.text}", code="LLM_API_ERROR")
 
         data = response.json()
         candidates = data.get("candidates", [])
-        if not candidates or "content" not in candidates[0]:
-            raise AppException(
-                status_code=502,
-                message="Gemini returned an empty candidate list or blocked output.",
-                code="LLM_EMPTY_RESPONSE"
-            )
+        if not candidates:
+            raise AppException(status_code=502, message="Gemini returned no candidates", code="LLM_EMPTY_RESPONSE")
 
-        text_part = candidates[0]["content"]["parts"][0].get("text", "")
+        candidate = candidates[0]
+        text_content = ""
+        try:
+            parts = candidate.get("content", {}).get("parts", [])
+            for p in parts:
+                text_content += p.get("text", "")
+        except Exception:
+            pass
+
         usage = data.get("usageMetadata", {})
         prompt_tokens = usage.get("promptTokenCount", 0)
         completion_tokens = usage.get("candidatesTokenCount", 0)
-        total_tokens = usage.get("totalTokenCount", prompt_tokens + completion_tokens)
+        total_tokens = usage.get("totalTokenCount", 0)
 
-        # Parse & Validate with Pydantic; retry once on malformed JSON
         try:
-            parsed_json = json.loads(text_part)
+            parsed_json = json.loads(text_content)
             parsed_instance = response_model.model_validate(parsed_json)
         except (json.JSONDecodeError, ValidationError) as parse_err:
-            logger.warning(f"Malformed JSON or validation error on first try: {parse_err}. Retrying once...")
-            # Retry once with explicit json correction prompt
+            logger.warning(f"Gemini JSON parse/validation error: {parse_err}. Retrying once...")
             retry_body = dict(req_body)
-            retry_body["contents"].append({
-                "role": "model",
-                "parts": [{"text": text_part}]
-            })
+            retry_body["contents"].append({"role": "model", "parts": [{"text": text_content}]})
             retry_body["contents"].append({
                 "role": "user",
-                "parts": [{"text": f"Your previous response produced a validation/JSON error: {str(parse_err)}. Please output strictly valid JSON adhering exactly to the schema."}]
+                "parts": [{"text": f"Output failed schema validation: {str(parse_err)}. Please re-output strict JSON adhering to schema."}],
             })
             retry_resp = await _call_api(retry_body)
             if retry_resp.status_code != 200:
-                raise AppException(
-                    status_code=502,
-                    message=f"Gemini API retry failed: {retry_resp.text}",
-                    code="LLM_PROVIDER_ERROR"
-                )
+                raise AppException(status_code=502, message="Gemini retry call failed", code="LLM_PROVIDER_ERROR")
             retry_data = retry_resp.json()
-            retry_text = retry_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+            r_parts = retry_data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+            text_content = "".join([p.get("text", "") for p in r_parts])
             try:
-                parsed_json = json.loads(retry_text)
+                parsed_json = json.loads(text_content)
                 parsed_instance = response_model.model_validate(parsed_json)
-                text_part = retry_text
-                r_usage = retry_data.get("usageMetadata", {})
-                prompt_tokens += r_usage.get("promptTokenCount", 0)
-                completion_tokens += r_usage.get("candidatesTokenCount", 0)
-                total_tokens = prompt_tokens + completion_tokens
             except Exception as final_exc:
-                logger.error(f"Retry parsing also failed: {final_exc}")
                 raise AppException(
                     status_code=502,
-                    message=f"Failed to produce valid structured JSON after retry: {str(final_exc)}",
+                    message=f"Failed to produce valid structured JSON from Gemini: {str(final_exc)}",
                     code="LLM_MALFORMED_OUTPUT"
                 )
 
         cost = self.calculate_cost(model, prompt_tokens, completion_tokens)
         return LLMResponse(
             parsed=parsed_instance,
-            raw_text=text_part,
+            raw_text=text_content,
             model_name=model,
+            provider_name=self.provider_name,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
             estimated_cost_usd=cost,
         )
 
+    def _clean_schema_for_gemini(self, schema: dict) -> dict:
+        """
+        Removes unsupported properties and fully inlines/dereferences $defs/$ref
+        so Gemini accepts valid structured JSON schemas without $ref errors.
+        """
+        import copy
+        defs = schema.get("$defs", {}) or schema.get("definitions", {})
 
-class OpenAIProvider(LLMProvider):
-    """
-    Adapter for OpenAI API (gpt-4o-mini, etc.) using Structured Outputs.
-    """
+        def _resolve(node):
+            if isinstance(node, dict):
+                if "$ref" in node:
+                    ref_key = node["$ref"].split("/")[-1]
+                    if ref_key in defs:
+                        resolved = _resolve(copy.deepcopy(defs[ref_key]))
+                        for k, v in node.items():
+                            if k != "$ref":
+                                resolved[k] = _resolve(v)
+                        return resolved
+                cleaned = {}
+                for k, v in node.items():
+                    if k not in ("$defs", "definitions", "title"):
+                        cleaned[k] = _resolve(v)
+                return cleaned
+            elif isinstance(node, list):
+                return [_resolve(item) for item in node]
+            return node
+
+        return _resolve(copy.deepcopy(schema))
+
+
+class GroqProvider(LLMProvider):
+    provider_name: str = "groq"
 
     def __init__(self, api_key: str | None = None, http_client: httpx.AsyncClient | None = None):
-        self.api_key = api_key or settings.OPENAI_API_KEY
-        self.http_client = http_client or httpx.AsyncClient(timeout=120.0)
-        self.base_url = "https://api.openai.com/v1"
+        self.api_key = api_key or settings.GROQ_API_KEY
+        self.http_client = http_client or httpx.AsyncClient(timeout=60.0)
 
     async def generate_structured(
         self,
@@ -238,14 +232,128 @@ class OpenAIProvider(LLMProvider):
         model_name: str | None = None,
         temperature: float = 0.2,
     ) -> LLMResponse:
-        model = model_name or settings.OPENAI_DEFAULT_MODEL
-        url = f"{self.base_url}/chat/completions"
+        if not self.api_key:
+            raise AppException(
+                status_code=500,
+                message="GROQ_API_KEY is not configured",
+                code="CONFIG_ERROR"
+            )
+
+        model = model_name or settings.GROQ_DEFAULT_MODEL
+        url = "https://api.groq.com/openai/v1/chat/completions"
+
+        schema = response_model.model_json_schema()
+
+        req_body = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": f"{system_instruction}\nYou MUST output valid JSON conforming strictly to the requested schema."},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": temperature,
+            "response_format": {
+                "type": "json_object"
+            },
+        }
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
 
+        async def _call_api(body: dict) -> httpx.Response:
+            try:
+                resp = await self.http_client.post(url, headers=headers, json=body)
+                return resp
+            except Exception as exc:
+                logger.error(f"Groq API request network failure: {exc}")
+                raise AppException(
+                    status_code=502,
+                    message=f"Groq API communication failure: {str(exc)}",
+                    code="LLM_COMMUNICATION_ERROR"
+                )
+
+        response = await _call_api(req_body)
+
+        if response.status_code == 429:
+            raise AppException(status_code=429, message="Groq rate limit exceeded", code="LLM_RATE_LIMIT")
+        elif response.status_code >= 500:
+            raise AppException(status_code=502, message=f"Groq server error: {response.text}", code="LLM_PROVIDER_ERROR")
+        elif response.status_code != 200:
+            raise AppException(status_code=response.status_code, message=f"Groq API error: {response.text}", code="LLM_API_ERROR")
+
+        data = response.json()
+        choices = data.get("choices", [])
+        if not choices:
+            raise AppException(status_code=502, message="Groq returned empty choices", code="LLM_EMPTY_RESPONSE")
+
+        content = choices[0].get("message", {}).get("content", "")
+        usage = data.get("usage", {})
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
+        total_tokens = usage.get("total_tokens", prompt_tokens + completion_tokens)
+
+        try:
+            parsed_json = json.loads(content)
+            parsed_instance = response_model.model_validate(parsed_json)
+        except (json.JSONDecodeError, ValidationError) as parse_err:
+            logger.warning(f"Groq JSON parse/validation error: {parse_err}. Retrying once...")
+            retry_body = dict(req_body)
+            retry_body["messages"].append({"role": "assistant", "content": content})
+            retry_body["messages"].append({
+                "role": "user",
+                "content": f"Schema validation error: {str(parse_err)}. Please output only valid JSON matching the schema."
+            })
+            retry_resp = await _call_api(retry_body)
+            if retry_resp.status_code != 200:
+                raise AppException(status_code=502, message=f"Groq API retry failed: {retry_resp.text}", code="LLM_PROVIDER_ERROR")
+            retry_data = retry_resp.json()
+            content = retry_data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            try:
+                parsed_json = json.loads(content)
+                parsed_instance = response_model.model_validate(parsed_json)
+            except Exception as final_exc:
+                raise AppException(
+                    status_code=502,
+                    message=f"Failed to produce valid structured JSON from Groq: {str(final_exc)}",
+                    code="LLM_MALFORMED_OUTPUT"
+                )
+
+        cost = self.calculate_cost(model, prompt_tokens, completion_tokens)
+        return LLMResponse(
+            parsed=parsed_instance,
+            raw_text=content,
+            model_name=model,
+            provider_name=self.provider_name,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            estimated_cost_usd=cost,
+        )
+
+
+class OpenAIProvider(LLMProvider):
+    provider_name: str = "openai"
+
+    def __init__(self, api_key: str | None = None, http_client: httpx.AsyncClient | None = None):
+        self.api_key = api_key or settings.OPENAI_API_KEY
+        self.http_client = http_client or httpx.AsyncClient(timeout=60.0)
+
+    async def generate_structured(
+        self,
+        prompt: str,
+        system_instruction: str,
+        response_model: Type[T],
+        model_name: str | None = None,
+        temperature: float = 0.2,
+    ) -> LLMResponse:
+        if not self.api_key:
+            raise AppException(status_code=500, message="OPENAI_API_KEY is not configured", code="CONFIG_ERROR")
+
+        model = model_name or settings.OPENAI_DEFAULT_MODEL
+        url = "https://api.openai.com/v1/chat/completions"
         schema = response_model.model_json_schema()
+
         req_body = {
             "model": model,
             "messages": [
@@ -257,40 +365,31 @@ class OpenAIProvider(LLMProvider):
                 "type": "json_schema",
                 "json_schema": {
                     "name": response_model.__name__,
-                    "strict": False,
+                    "strict": True,
                     "schema": schema,
-                }
-            }
+                },
+            },
+        }
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
         }
 
         try:
-            resp = await self.http_client.post(url, headers=headers, json=req_body)
+            response = await self.http_client.post(url, headers=headers, json=req_body)
         except Exception as exc:
-            logger.error(f"OpenAI API request network failure: {exc}")
-            raise AppException(
-                status_code=502,
-                message="OpenAI API communication failure",
-                code="LLM_COMMUNICATION_ERROR"
-            )
+            raise AppException(status_code=502, message=f"OpenAI API network failure: {str(exc)}", code="LLM_COMMUNICATION_ERROR")
 
-        if resp.status_code != 200:
-            logger.error(f"OpenAI API error (HTTP {resp.status_code}): {resp.text}")
-            raise AppException(
-                status_code=502,
-                message=f"OpenAI API error (HTTP {resp.status_code})",
-                code="LLM_PROVIDER_ERROR"
-            )
+        if response.status_code == 429:
+            raise AppException(status_code=429, message="OpenAI rate limit exceeded", code="LLM_RATE_LIMIT")
+        elif response.status_code >= 500:
+            raise AppException(status_code=502, message=f"OpenAI server error: {response.text}", code="LLM_PROVIDER_ERROR")
+        elif response.status_code != 200:
+            raise AppException(status_code=response.status_code, message=f"OpenAI API error: {response.text}", code="LLM_API_ERROR")
 
-        data = resp.json()
-        choices = data.get("choices", [])
-        if not choices:
-            raise AppException(
-                status_code=502,
-                message="OpenAI returned an empty choice list.",
-                code="LLM_EMPTY_RESPONSE"
-            )
-
-        content = choices[0]["message"]["content"]
+        data = response.json()
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
         usage = data.get("usage", {})
         prompt_tokens = usage.get("prompt_tokens", 0)
         completion_tokens = usage.get("completion_tokens", 0)
@@ -299,38 +398,15 @@ class OpenAIProvider(LLMProvider):
         try:
             parsed_json = json.loads(content)
             parsed_instance = response_model.model_validate(parsed_json)
-        except (json.JSONDecodeError, ValidationError) as parse_err:
-            logger.warning(f"OpenAI JSON parse error: {parse_err}. Retrying once...")
-            retry_body = dict(req_body)
-            retry_body["messages"].append({"role": "assistant", "content": content})
-            retry_body["messages"].append({
-                "role": "user",
-                "content": f"Schema validation error: {str(parse_err)}. Please re-output purely valid JSON matching the schema."
-            })
-            retry_resp = await self.http_client.post(url, headers=headers, json=retry_body)
-            if retry_resp.status_code != 200:
-                raise AppException(
-                    status_code=502,
-                    message=f"OpenAI API retry failed: {retry_resp.text}",
-                    code="LLM_PROVIDER_ERROR"
-                )
-            retry_data = retry_resp.json()
-            content = retry_data.get("choices", [{}])[0].get("message", {}).get("content", "")
-            try:
-                parsed_json = json.loads(content)
-                parsed_instance = response_model.model_validate(parsed_json)
-            except Exception as final_exc:
-                raise AppException(
-                    status_code=502,
-                    message=f"Failed to produce valid structured JSON from OpenAI: {str(final_exc)}",
-                    code="LLM_MALFORMED_OUTPUT"
-                )
+        except Exception as parse_err:
+            raise AppException(status_code=502, message=f"Failed to parse OpenAI JSON: {str(parse_err)}", code="LLM_MALFORMED_OUTPUT")
 
         cost = self.calculate_cost(model, prompt_tokens, completion_tokens)
         return LLMResponse(
             parsed=parsed_instance,
             raw_text=content,
             model_name=model,
+            provider_name=self.provider_name,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
@@ -338,23 +414,92 @@ class OpenAIProvider(LLMProvider):
         )
 
 
+class FallbackLLMProvider(LLMProvider):
+    """
+    Orchestrates primary provider with automatic fallback on rate-limits,
+    5xx server errors, timeouts, or unrecoverable malformed JSON.
+    """
+
+    def __init__(self, primary: LLMProvider, fallback: LLMProvider | None = None):
+        self.primary = primary
+        self.fallback = fallback
+        self.provider_name = primary.provider_name
+
+    async def generate_structured(
+        self,
+        prompt: str,
+        system_instruction: str,
+        response_model: Type[T],
+        model_name: str | None = None,
+        temperature: float = 0.2,
+    ) -> LLMResponse:
+        try:
+            return await self.primary.generate_structured(
+                prompt=prompt,
+                system_instruction=system_instruction,
+                response_model=response_model,
+                model_name=model_name,
+                temperature=temperature,
+            )
+        except AppException as primary_err:
+            # Fall back on 429 (rate limit), 502/5xx (server error/timeout), or LLM_MALFORMED_OUTPUT
+            should_fallback = primary_err.status_code in (429, 500, 502, 503, 504) or primary_err.code in (
+                "LLM_RATE_LIMIT",
+                "LLM_PROVIDER_ERROR",
+                "LLM_COMMUNICATION_ERROR",
+                "LLM_MALFORMED_OUTPUT",
+                "LLM_EMPTY_RESPONSE",
+            )
+            if not should_fallback or not self.fallback:
+                raise primary_err
+
+            logger.warning(
+                f"Primary LLM provider '{self.primary.provider_name}' failed with {primary_err.code} ({primary_err.message}). "
+                f"Attempting fallback to '{self.fallback.provider_name}'..."
+            )
+            try:
+                fallback_resp = await self.fallback.generate_structured(
+                    prompt=prompt,
+                    system_instruction=system_instruction,
+                    response_model=response_model,
+                    model_name=None,  # Use fallback's default configured model
+                    temperature=temperature,
+                )
+                logger.info(f"Fallback to '{self.fallback.provider_name}' ({fallback_resp.model_name}) succeeded.")
+                return fallback_resp
+            except Exception as fb_err:
+                logger.error(f"Fallback provider '{self.fallback.provider_name}' also failed: {fb_err}")
+                raise primary_err
+
+
 def get_llm_provider(
     provider_type: str | None = None,
     http_client: httpx.AsyncClient | None = None,
     api_key: str | None = None,
+    with_fallback: bool = True,
 ) -> LLMProvider:
     """
     Factory creating the configured provider instance.
     """
     ptype = (provider_type or settings.LLM_PROVIDER).lower()
-    if ptype == "gemini":
-        return GeminiProvider(api_key=api_key, http_client=http_client)
-    elif ptype == "openai":
-        return OpenAIProvider(api_key=api_key, http_client=http_client)
-    else:
-        raise AppException(
-            status_code=500,
-            message=f"Unsupported LLM_PROVIDER '{ptype}'. Allowed: 'gemini', 'openai'",
-            code="CONFIG_ERROR"
-        )
+    
+    def create_single(name: str) -> LLMProvider:
+        if name == "gemini":
+            return GeminiProvider(api_key=api_key, http_client=http_client)
+        elif name == "groq":
+            return GroqProvider(api_key=api_key, http_client=http_client)
+        elif name == "openai":
+            return OpenAIProvider(api_key=api_key, http_client=http_client)
+        else:
+            raise AppException(
+                status_code=500,
+                message=f"Unsupported LLM_PROVIDER '{name}'. Allowed: 'gemini', 'groq', 'openai'",
+                code="CONFIG_ERROR"
+            )
 
+    primary = create_single(ptype)
+    if not with_fallback or not settings.LLM_FALLBACK_PROVIDER or settings.LLM_FALLBACK_PROVIDER == ptype:
+        return primary
+
+    fallback = create_single(settings.LLM_FALLBACK_PROVIDER)
+    return FallbackLLMProvider(primary=primary, fallback=fallback)

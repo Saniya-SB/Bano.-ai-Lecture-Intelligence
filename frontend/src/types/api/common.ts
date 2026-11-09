@@ -1,7 +1,8 @@
 /**
- * PROVISIONAL - Pending backend contract confirmation with Owais.
- * Note: Field names follow backend snake_case convention.
+ * Common API DTO types (snake_case).
+ * Field names follow backend snake_case convention.
  * String IDs, ISO 8601 timestamps.
+ * See docs/API_CONTRACT.md for the authoritative shape.
  */
 
 export type LectureStatusDto =
@@ -36,12 +37,14 @@ export interface UserDto {
 }
 
 export interface LectureDto {
-  id: string; // TODO(contract): verify id vs lecture_id
+  id: string;
   title: string;
   subject: string;
   topic?: string;
-  duration_seconds: number; // TODO(contract): verify seconds vs minutes
+  duration_seconds: number;
   status: LectureStatusDto;
+  /** Present on backend response; stripped to false in production. */
+  is_test_data?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -60,7 +63,7 @@ export interface JobDto {
   id: string;
   lecture_id: string;
   stage: JobStageDto;
-  progress_percent?: number; // Optional: only if backend provides
+  progress_percent?: number;
   error_message?: string;
   created_at: string;
   updated_at: string;

@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ProcessingStepper } from "@/features/processing/components/processing-stepper";
-import { useLectures } from "@/hooks/use-lectures";
+import { useLectures, useLecture } from "@/hooks/use-lectures";
 import { useJobPolling } from "@/hooks/use-job-polling";
 import { ROUTES } from "@/config/routes";
 import { FEATURES } from "@/config/features";
@@ -22,7 +22,12 @@ export default function LectureProcessingPage() {
   const lectureId = params?.id ?? "";
   const router = useRouter();
 
-  const { lectures, isLoading: isLecturesLoading, isError: isLecturesError, refetch: refetchLectures } = useLectures();
+  const {
+    lecture,
+    isLoading: isLectureLoading,
+    isError: isLectureError,
+    refetch: refetchLecture,
+  } = useLecture(lectureId);
   const {
     job,
     isLoading: isJobLoading,
@@ -31,8 +36,6 @@ export default function LectureProcessingPage() {
     refetch: refetchJob,
     resetWatchdog,
   } = useJobPolling(lectureId);
-
-  const lecture = lectures.find((item) => item.id === lectureId);
 
   // If completed, redirect immediately to the workspace
   useEffect(() => {
@@ -51,7 +54,7 @@ export default function LectureProcessingPage() {
       await jobService.retryJob(lectureId);
       toast.success("Processing restarted.");
       resetWatchdog();
-      refetchLectures();
+      refetchLecture();
       refetchJob();
     } catch {
       toast.error("Failed to retry processing. Please try again.");
@@ -60,7 +63,7 @@ export default function LectureProcessingPage() {
     }
   };
 
-  if (isLecturesLoading || isJobLoading) {
+  if (isLectureLoading || isJobLoading) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <PageHeader
@@ -79,7 +82,7 @@ export default function LectureProcessingPage() {
     );
   }
 
-  if (isLecturesError || isJobError) {
+  if (isLectureError || isJobError) {
     return (
       <div className="max-w-2xl mx-auto space-y-4">
         <PageHeader
@@ -87,7 +90,7 @@ export default function LectureProcessingPage() {
           description="There was an issue retrieving lecture processing updates."
         />
         <div className="flex gap-3">
-          <Button onClick={() => { refetchLectures(); refetchJob(); }} variant="default">
+          <Button onClick={() => { refetchLecture(); refetchJob(); }} variant="default">
             <RefreshCw className="h-4 w-4 mr-2" /> Try Again
           </Button>
           <Button asChild variant="outline">

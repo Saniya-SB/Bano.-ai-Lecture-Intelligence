@@ -24,3 +24,21 @@ export function useLectures() {
     refetch: query.refetch,
   };
 }
+
+export function useLecture(lectureId: string) {
+  const query = useQuery<Lecture, Error>({
+    queryKey: lectureQueryKeys.detail(lectureId),
+    queryFn: () => lectureService.getLectureById(lectureId),
+    enabled: Boolean(lectureId),
+    retry: 4,
+    retryDelay: (attempt) => Math.min(500 * (attempt + 1), 2000),
+  });
+
+  return {
+    lecture: query.data ?? null,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
+  };
+}

@@ -8,9 +8,7 @@ import { mapJobDtoToDomain } from "./adapters/job-adapter";
 export const jobService = {
   /**
    * Fetches the current processing job for a lecture.
-   *
-   * PROVISIONAL: Pending Owais confirmation of Q7:
-   * (Whether endpoint is GET /jobs/{id} or GET /lectures/{lectureId}/job).
+   * Backend GET /api/v1/jobs/{identifier} accepts either jobId or lectureId.
    */
   async getJob(lectureId: string): Promise<Job | null> {
     if (env.USE_MOCK_API) {
@@ -28,8 +26,6 @@ export const jobService = {
 
   /**
    * Retries a failed processing job.
-   * Gated behind FEATURES.processingRetry capability flag.
-   * PROVISIONAL: Pending Owais confirmation of Q9.
    */
   async retryJob(lectureId: string): Promise<Job> {
     if (env.USE_MOCK_API) {

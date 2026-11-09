@@ -7,6 +7,7 @@ class LectureStatus(str, enum.Enum):
     TRANSCRIBING = "transcribing"
     GENERATING_NOTES = "generating_notes"
     COMPLETED = "completed"
+    GENERATION_FAILED = "generation_failed"
     FAILED = "failed"
 
 
@@ -44,6 +45,8 @@ ALLOWED_JOB_STAGE_TRANSITIONS: dict[JobStage, set[JobStage]] = {
 
 def can_transition_job_stage(current: JobStage, next_stage: JobStage) -> bool:
     """Validates if transitioning from current stage to next_stage is permitted."""
+    if current == next_stage:
+        return True
     return next_stage in ALLOWED_JOB_STAGE_TRANSITIONS.get(current, set())
 
 
@@ -69,4 +72,5 @@ class OutputType(str, enum.Enum):
     GLOSSARY = "glossary"
     QUESTIONS = "questions"
     QUIZ = "quiz"
+    ASK_ANSWER = "ask_answer"
 

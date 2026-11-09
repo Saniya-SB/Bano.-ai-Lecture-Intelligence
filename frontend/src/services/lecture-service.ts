@@ -28,6 +28,7 @@ export const lectureService = {
     title: string;
     subject: string;
     topic?: string;
+    is_test_data?: boolean;
   }): Promise<Lecture> {
     if (env.USE_MOCK_API) {
       const dto = await mockStore.createLecture(params);
@@ -42,9 +43,6 @@ export const lectureService = {
 
   /**
    * Upload mode — uploads an audio file directly to the backend.
-   *
-   * MOCK: Creates a lecture record via mockStore and simulates upload
-   * progress via the onProgress callback. No real file data is sent.
    *
    * REAL: POST /uploads/direct with multipart FormData.
    * Accepted formats: mp3, wav, mp4, m4a, webm (backend validates via magic bytes).
@@ -63,7 +61,6 @@ export const lectureService = {
     onProgress?: (percent: number) => void
   ): Promise<Lecture> {
     if (env.USE_MOCK_API) {
-      // Simulate chunked upload progress, then create the lecture record
       const lecture = await mockStore.simulateFileUpload(
         { title: params.title, subject: params.subject, topic: params.topic },
         onProgress
@@ -71,10 +68,6 @@ export const lectureService = {
       return mapLectureDtoToDomain(lecture);
     }
 
-    // ── REAL API ────────────────────────────────────────────────────────────
-    // POST /uploads/direct — single-request multipart upload.
-    // Returns { lecture_id, job_id, status }. After this, poll
-    // GET /jobs/{lecture_id} for processing progress.
     onProgress?.(10);
     const formData = new FormData();
     formData.append("file", params.file);
@@ -86,22 +79,16 @@ export const lectureService = {
     const result = await apiClient<{ lecture_id: string; job_id: string; status: string }>("/uploads/direct", {
       method: "POST",
       body: formData,
-      // Content-Type is intentionally omitted — apiClient skips it for FormData
     });
     onProgress?.(100);
-    // Fetch the full lecture record to return a Lecture domain object
+
     const dto = await apiClient<LectureDto>(`/lectures/${result.lecture_id}`);
     return mapLectureDtoToDomain(dto);
   },
 
   /**
    * Recording mode — upload a recorded audio Blob from the browser.
-   *
-   * MOCK: Same simulation as uploadFile.
-   *
    * REAL: POST /uploads/direct with source_type="recording".
-   * Accepts webm/ogg from MediaRecorder (backend validates via magic bytes).
-   * Behind FEATURES.browserRecording feature flag.
    */
   async uploadRecording(
     params: {
@@ -121,7 +108,6 @@ export const lectureService = {
       return mapLectureDtoToDomain(lecture);
     }
 
-    // POST /uploads/direct with source_type="recording"
     onProgress?.(10);
     const ext = params.mimeType.includes("ogg") ? "ogg" : "webm";
     const file = new File([params.blob], `recording.${ext}`, { type: params.mimeType });
@@ -137,19 +123,13 @@ export const lectureService = {
       body: formData,
     });
     onProgress?.(100);
+
     const dto = await apiClient<LectureDto>(`/lectures/${result.lecture_id}`);
     return mapLectureDtoToDomain(dto);
   },
 
   /**
    * YouTube mode — submit a YouTube URL for backend caption extraction.
-   * Frontend never downloads or scrapes video content.
-   *
-   * MOCK: Creates a lecture record via mockStore.
-   *
-   * REAL: POST /uploads/youtube with FormData { url }.
-   * Backend returns 501 NOT IMPLEMENTED — handled gracefully by the caller.
-   * Behind FEATURES.youtubeIngestion feature flag.
    */
   async createYoutubeLecture(params: {
     title: string;
@@ -166,13 +146,9 @@ export const lectureService = {
       return mapLectureDtoToDomain(dto);
     }
 
-    // POST /uploads/youtube — backend validates URL safety, then raises 501.
-    // This path is behind FEATURES.youtubeIngestion = false by default.
-    // The ApiError with status 501 propagates to the caller.
     const formData = new FormData();
     formData.append("url", params.youtubeUrl);
 
-    // Backend returns 501; the resulting ApiError is propagated to the UI layer.
     const result = await apiClient<{ lecture_id: string; job_id: string; status: string }>("/uploads/youtube", {
       method: "POST",
       body: formData,
@@ -200,6 +176,47 @@ export const lectureService = {
     }
     await apiClient<void>(`/lectures/${id}`, {
       method: "DELETE",
+    });
+  },
+
+  /**
+   * Downloads lecture notes as PDF from GET /api/v1/lectures/{id}/export/notes?format=pdf
+   */
+  async exportNotesPdf(id: string, title: string): Promise<void> {
+    const baseUrl = env.API_URL || env.API_BASE_URL;
+    const url = `${baseUrl.replace(/\/$/, "")}/lectures/${id}/export/notes?format=pdf`;
+    const token = (await import("./auth-provider")).authManager.getToken();
+
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      const errorJson = await res.json().catch(() => null);
+      throw new Error(errorJson?.detail || `PDF export failed with status ${res.status}`);
+    }
+
+    const blob = await res.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    const safeTitle = title.toLowerCase().replace(/[^a-z0-9_-]/g, "_") || "lecture";
+    a.download = `${safeTitle}_notes.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(downloadUrl);
+  },
+
+  /**
+   * Ask this lecture a question (English, Hindi, or Hinglish).
+   */
+  async askLecture(id: string, question: string): Promise<{ answer: string; is_ai_generated: boolean; answered: boolean }> {
+    return apiClient<{ answer: string; is_ai_generated: boolean; answered: boolean }>(`/lectures/${id}/ask`, {
+      method: "POST",
+      body: JSON.stringify({ question }),
     });
   },
 };

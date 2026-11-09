@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useLectures } from "@/hooks/use-lectures";
+import { useLectures, useLecture } from "@/hooks/use-lectures";
 import { useTranscript } from "@/hooks/use-transcript";
 import { useMaterials } from "@/hooks/use-materials";
 import { useQuiz } from "@/hooks/use-quiz";
@@ -16,15 +16,21 @@ import { NotesTab } from "@/features/materials/components/notes-tab";
 import { SummaryTab } from "@/features/materials/components/summary-tab";
 import { QuestionsTab } from "@/features/materials/components/questions-tab";
 import { QuizTab } from "@/features/materials/components/quiz-tab";
+import { AskTab } from "@/features/materials/components/ask-tab";
 import { formatTimestamp } from "@/lib/formatters";
 import { ROUTES } from "@/config/routes";
 import { LectureStatus } from "@/types/domain/common";
+import { lectureService } from "@/services/lecture-service";
+import { materialsService } from "@/services/materials-service";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   AlertCircle,
   FileText,
   Clock,
   RefreshCw,
+  Download,
+  Megaphone,
 } from "lucide-react";
 
 export type WorkspaceTab =
@@ -33,7 +39,9 @@ export type WorkspaceTab =
   | "notes"
   | "summary"
   | "questions"
-  | "quiz";
+  | "announcements"
+  | "quiz"
+  | "ask";
 
 export const WORKSPACE_TABS: { key: WorkspaceTab; label: string }[] = [
   { key: "overview", label: "Overview" },
@@ -41,7 +49,9 @@ export const WORKSPACE_TABS: { key: WorkspaceTab; label: string }[] = [
   { key: "notes", label: "Notes" },
   { key: "summary", label: "Summary" },
   { key: "questions", label: "Questions" },
+  { key: "announcements", label: "Announcements" },
   { key: "quiz", label: "Quiz" },
+  { key: "ask", label: "Ask" },
 ];
 
 export function LectureWorkspaceInner({ lectureId }: { lectureId: string }) {
@@ -50,11 +60,11 @@ export function LectureWorkspaceInner({ lectureId }: { lectureId: string }) {
   const activeTab = (searchParams.get("tab") as WorkspaceTab) || "overview";
 
   const {
-    lectures,
-    isLoading: isLecturesLoading,
-    isError: isLecturesError,
-    refetch: refetchLectures,
-  } = useLectures();
+    lecture,
+    isLoading: isLectureLoading,
+    isError: isLectureError,
+    refetch: refetchLecture,
+  } = useLecture(lectureId);
 
   const {
     transcript,
@@ -79,8 +89,6 @@ export function LectureWorkspaceInner({ lectureId }: { lectureId: string }) {
     refetch: refetchQuiz,
   } = useQuiz(lectureId);
 
-  const lecture = lectures.find((l) => l.id === lectureId);
-
   const handleTabChange = (newTab: string) => {
     router.replace(`/lectures/${lectureId}?tab=${newTab}`);
   };
@@ -90,7 +98,7 @@ export function LectureWorkspaceInner({ lectureId }: { lectureId: string }) {
     // Could optionally trigger smooth scroll to matching timestamp
   };
 
-  if (isLecturesLoading) {
+  if (isLectureLoading) {
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-10 w-1/3 bg-bano-surface-sunken rounded" />
@@ -100,7 +108,7 @@ export function LectureWorkspaceInner({ lectureId }: { lectureId: string }) {
     );
   }
 
-  if (isLecturesError) {
+  if (isLectureError) {
     return (
       <div className="max-w-xl mx-auto py-12 text-center space-y-4">
         <AlertCircle className="h-10 w-10 mx-auto text-bano-danger" />
@@ -111,7 +119,7 @@ export function LectureWorkspaceInner({ lectureId }: { lectureId: string }) {
           There was an error retrieving lecture details.
         </p>
         <div className="flex justify-center gap-3">
-          <Button onClick={() => refetchLectures()} variant="default">
+          <Button onClick={() => refetchLecture()} variant="default">
             <RefreshCw className="h-4 w-4 mr-2" /> Try Again
           </Button>
           <Button asChild variant="outline">
@@ -180,10 +188,65 @@ export function LectureWorkspaceInner({ lectureId }: { lectureId: string }) {
             </span>
           </p>
         </div>
+
+        {/* PDF Export Button */}
+        <div className="shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              try {
+                await lectureService.exportNotesPdf(lecture.id, lecture.title);
+                toast.success("Notes PDF export ho gaya!");
+              } catch (err: unknown) {
+                toast.error(err instanceof Error ? err.message : "Export download karne mein samasya aayi.");
+              }
+            }}
+            className="gap-2 border-bano-secondary-ink/30 text-bano-secondary-ink hover:bg-bano-info-soft font-medium"
+          >
+            <Download className="h-4 w-4" />
+            Notes export (PDF)
+          </Button>
+        </div>
       </div>
 
+      {/* Generation Failed or In-Progress Warning Banner */}
+      {lecture.status === "generation_failed" && (
+        <div
+          role="alert"
+          className="p-4 rounded-lg bg-bano-danger-soft border border-bano-danger/30 text-bano-danger flex items-center justify-between gap-3"
+        >
+          <div className="flex items-center gap-3 text-sm">
+            <AlertCircle className="h-5 w-5 shrink-0" />
+            <div>
+              <span className="font-semibold">AI study material generation failed.</span>{" "}
+              <span>Audio transcript is safe and available. You can retry generating notes and quiz now.</span>
+            </div>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={async () => {
+              try {
+                toast.info("Generating study materials...");
+                await materialsService.generateMaterials(lecture.id, true);
+                toast.success("Study materials generated successfully!");
+                refetchLecture();
+                refetchMaterials();
+              } catch {
+                toast.error("Retry failed. Please check backend connection.");
+              }
+            }}
+            className="text-xs shrink-0 bg-bano-danger text-white hover:bg-bano-danger/90"
+          >
+            <RefreshCw className="h-3.5 w-3.5 mr-1" /> Retry Generation
+          </Button>
+        </div>
+      )}
+
       {/* Non-completed Warning Banner */}
-      {!isCompleted && (
+      {!isCompleted && lecture.status !== "generation_failed" && (
         <div
           role="alert"
           className="p-4 rounded-lg bg-bano-info-soft border border-bano-info/20 text-bano-info flex items-center justify-between gap-3"
@@ -277,7 +340,11 @@ export function LectureWorkspaceInner({ lectureId }: { lectureId: string }) {
                 )}
               </Card>
             ) : (
-              <TranscriptViewer transcript={transcript} onTimestampClick={handleTimestampClick} />
+              <TranscriptViewer
+                transcript={transcript}
+                glossaryTerms={materials?.glossary?.map((g) => g.term) || []}
+                onTimestampClick={handleTimestampClick}
+              />
             )}
           </div>
         )}
@@ -286,10 +353,11 @@ export function LectureWorkspaceInner({ lectureId }: { lectureId: string }) {
           <div role="tabpanel" id="panel-notes" aria-labelledby="tab-notes">
             <NotesTab
               materials={materials}
+              lectureTitle={lecture.title}
+              lectureId={lecture.id}
               isLoading={isMaterialsLoading}
               isError={isMaterialsError}
               onRetry={refetchMaterials}
-              onTimestampClick={handleTimestampClick}
             />
           </div>
         )}
@@ -301,7 +369,6 @@ export function LectureWorkspaceInner({ lectureId }: { lectureId: string }) {
               isLoading={isMaterialsLoading}
               isError={isMaterialsError}
               onRetry={refetchMaterials}
-              onTimestampClick={handleTimestampClick}
             />
           </div>
         )}
@@ -313,8 +380,64 @@ export function LectureWorkspaceInner({ lectureId }: { lectureId: string }) {
               isLoading={isMaterialsLoading}
               isError={isMaterialsError}
               onRetry={refetchMaterials}
-              onTimestampClick={handleTimestampClick}
             />
+          </div>
+        )}
+
+        {activeTab === "announcements" && (
+          <div role="tabpanel" id="panel-announcements" aria-labelledby="tab-announcements">
+            {isMaterialsLoading ? (
+              <div className="space-y-4 animate-pulse">
+                <Card className="p-6 h-28 bg-bano-surface-sunken" />
+              </div>
+            ) : isMaterialsError ? (
+              <Card className="p-8 text-center space-y-3">
+                <AlertCircle className="h-8 w-8 mx-auto text-bano-danger" />
+                <p className="text-sm font-medium">Failed to load announcements.</p>
+                <Button size="sm" onClick={() => refetchMaterials()}>Retry</Button>
+              </Card>
+            ) : !materials || !materials.announcements || materials.announcements.length === 0 ? (
+              <Card className="p-12 text-center space-y-3">
+                <Megaphone className="h-10 w-10 mx-auto text-bano-text-subtle opacity-50" />
+                <h3 className="font-heading font-semibold text-base">No announcements detected</h3>
+                <p className="text-xs text-bano-text-muted max-w-sm mx-auto">
+                  Teacher announcements regarding exams, assignments, or deadlines will be extracted here.
+                </p>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                <div className="p-3 bg-bano-surface-sunken rounded-md border border-border text-xs text-bano-text flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2">
+                    <span className="font-semibold px-1.5 py-0.5 rounded bg-bano-accent/20 text-bano-text text-[11px] shrink-0">
+                      AI ne banaya, teacher ka exact statement nahi.
+                    </span>
+                    <span className="text-bano-text-muted mt-0.5">
+                      Extracted from teacher statements in lecture audio.
+                    </span>
+                  </div>
+                  {materials?.modelName && (
+                    <span className="text-[10px] font-mono text-bano-text-muted shrink-0 mt-0.5">
+                      Model: {materials.modelName}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  {materials.announcements.map((item, idx) => (
+                    <Card key={idx} className="p-5 border-l-4 border-l-bano-secondary-ink space-y-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <Megaphone className="h-4 w-4 text-bano-secondary-ink shrink-0 mt-0.5" />
+                          <p className="text-sm text-foreground font-medium leading-relaxed">
+                            {item.text}
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -327,7 +450,15 @@ export function LectureWorkspaceInner({ lectureId }: { lectureId: string }) {
               isError={isQuizError}
               onGenerateQuiz={generateQuiz}
               onRetry={refetchQuiz}
-              onTimestampClick={handleTimestampClick}
+            />
+          </div>
+        )}
+
+        {activeTab === "ask" && (
+          <div role="tabpanel" id="panel-ask" aria-labelledby="tab-ask">
+            <AskTab
+              lectureId={lecture.id}
+              keyConcepts={materials?.keyConcepts || []}
             />
           </div>
         )}

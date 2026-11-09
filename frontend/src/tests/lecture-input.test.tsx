@@ -117,21 +117,21 @@ describe("NewLecturePage — Upload mode", () => {
     expect(screen.getByLabelText(/topic/i)).toBeInTheDocument();
   });
 
-  it("shows validation errors if submitted without filling required fields", async () => {
+  it("shows disabled submit button until valid file and metadata are provided", async () => {
     const NewLecturePage = await importPage();
     render(<NewLecturePage />);
-    // Fill metadata so RHF passes its own validation; leave file unselected
-    // so onSubmit fires and sets the "please select an audio" error.
+    const submitBtn = screen.getByRole("button", { name: /process lecture/i });
+    expect(submitBtn).toBeDisabled();
+
+    // Fill title and subject
     fireEvent.change(screen.getByLabelText(/lecture title/i), {
       target: { value: "Test Lecture" },
     });
     fireEvent.change(screen.getByLabelText(/subject/i), {
       target: { value: "CS" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /upload.*process/i }));
-    await waitFor(() => {
-      expect(screen.getByText(/please select an audio/i)).toBeInTheDocument();
-    });
+    // Still disabled without file
+    expect(submitBtn).toBeDisabled();
   });
 });
 

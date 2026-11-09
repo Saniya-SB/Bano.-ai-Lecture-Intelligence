@@ -17,7 +17,7 @@ export default function ContactPage() {
           <p className="text-xs text-bano-text-muted">
             For academic partnerships, feedback, or technical queries.
           </p>
-          <p className="font-mono text-sm text-foreground">support@bano.ai</p>
+          <p className="font-mono text-sm text-foreground">sanbano786786@gmail.com</p>
         </Card>
 
         <Card className="p-6 space-y-3">
@@ -26,7 +26,7 @@ export default function ContactPage() {
           <p className="text-xs text-bano-text-muted">
             For issues with benchmark evaluation or API integration.
           </p>
-          <p className="font-mono text-sm text-foreground">dev@bano.ai</p>
+          <p className="font-mono text-sm text-foreground">oraza7867@outlook.com</p>
         </Card>
       </div>
     </div>

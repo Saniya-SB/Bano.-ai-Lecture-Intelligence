@@ -1,305 +1,258 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
-import {
-  Mic,
-  FileText,
-  AlignLeft,
-  BookMarked,
-  HelpCircle,
-  Brain,
-  BarChart3,
-  ArrowRight,
-  Sparkles,
-  CheckCircle2,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { ROUTES } from "@/config/routes";
-import { BRAND } from "@/config/brand";
+import { usePublicBenchmark } from "@/hooks/use-public-benchmark";
+import { MotionReveal } from "@/components/shared/motion-reveal";
 
-// ---------------------------------------------------------------------------
-// Feature cards data
-// ---------------------------------------------------------------------------
-const FEATURES = [
-  {
-    icon: Mic,
-    title: "Hinglish Transcription",
-    description:
-      "Transcribes mixed Hindi-English lecture audio into synchronized text, supporting both Devanagari and Roman scripts.",
-  },
-  {
-    icon: FileText,
-    title: "Smart Notes",
-    description:
-      "Generates structured, topic-organized notes from lecture content so you can review key ideas at a glance.",
-  },
-  {
-    icon: AlignLeft,
-    title: "Lecture Summaries",
-    description:
-      "Produces concise summaries that capture the essential points and narrative of each lecture segment.",
-  },
-  {
-    icon: BookMarked,
-    title: "Technical Glossary",
-    description:
-      "Identifies and defines domain-specific technical terms found in the lecture to build your vocabulary.",
-  },
-  {
-    icon: HelpCircle,
-    title: "Important Questions",
-    description:
-      "Surfaces potential exam and comprehension questions derived directly from lecture material.",
-  },
-  {
-    icon: Brain,
-    title: "AI Quizzes",
-    description:
-      "Creates interactive quizzes to test your understanding of lecture concepts and reinforce learning.",
-  },
-  {
-    icon: BarChart3,
-    title: "Model Benchmarking",
-    description:
-      "Research-grade evaluation platform for comparing speech-recognition models on technical Hinglish audio.",
-  },
-] as const;
+/** Inline benchmark widget shown on the landing page — no auth required. */
+function BenchmarkWidget() {
+  const { data, isLoading } = usePublicBenchmark();
 
-// ---------------------------------------------------------------------------
-// How it works steps
-// ---------------------------------------------------------------------------
-const HOW_IT_WORKS = [
-  {
-    num: "01",
-    title: "Upload or Record",
-    description:
-      "Upload an existing lecture file or record audio directly in the browser from any supported source.",
-  },
-  {
-    num: "02",
-    title: "AI Processing",
-    description:
-      "The AI pipeline processes the lecture audio and generates transcripts, notes, summaries, and quiz material.",
-  },
-  {
-    num: "03",
-    title: "Access & Study",
-    description:
-      "Browse dual-script transcripts, download notes, test yourself with quizzes, and track your progress.",
-  },
-] as const;
+  // Don't show anything while loading or if no data yet (empty DB)
+  if (isLoading) {
+    return (
+      <div className="border border-border rounded-lg bg-card p-5 space-y-3 animate-pulse">
+        <div className="h-4 w-40 bg-bano-surface-sunken rounded" />
+        <div className="h-16 bg-bano-surface-sunken rounded" />
+      </div>
+    );
+  }
 
-// ---------------------------------------------------------------------------
-// Page (Server Component)
-// ---------------------------------------------------------------------------
+  if (!data || data.models.length === 0) {
+    // Empty DB — skip the widget entirely rather than showing "unavailable"
+    return null;
+  }
+
+  return (
+    <div className="border border-border rounded-lg bg-card p-5 space-y-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <span className="font-mono text-xs uppercase tracking-widest text-bano-text-subtle">
+            Model comparison
+          </span>
+          <h3 className="font-heading font-semibold text-sm text-foreground mt-0.5">
+            Hinglish STT — real benchmark scores
+          </h3>
+        </div>
+        <Link
+          href={ROUTES.BENCHMARK}
+          className="text-xs text-bano-secondary-ink hover:underline font-medium"
+        >
+          Full details →
+        </Link>
+      </div>
+
+      {/* Comparison table */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-xs" role="table">
+          <thead>
+            <tr className="border-b border-border text-bano-text-subtle">
+              <th scope="col" className="pb-2 font-medium pr-4">Model</th>
+              <th scope="col" className="pb-2 font-medium text-right pr-4">WER ↓</th>
+              <th scope="col" className="pb-2 font-medium text-right pr-4">CER ↓</th>
+              <th scope="col" className="pb-2 font-medium text-right pr-4">Term acc ↑</th>
+              <th scope="col" className="pb-2 font-medium text-right">Latency</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/60">
+            {data.models.map((m) => (
+              <tr key={m.model_name} className="text-foreground">
+                <td className="py-2.5 pr-4 font-medium font-mono text-[11px] whitespace-nowrap">
+                  {m.model_name}
+                </td>
+                <td className="py-2.5 pr-4 text-right font-mono whitespace-nowrap">
+                  {m.wer !== null ? `${m.wer}%` : <span className="text-bano-text-subtle">—</span>}
+                </td>
+                <td className="py-2.5 pr-4 text-right font-mono whitespace-nowrap">
+                  {m.cer !== null ? `${m.cer}%` : <span className="text-bano-text-subtle">—</span>}
+                </td>
+                <td className="py-2.5 pr-4 text-right font-mono whitespace-nowrap">
+                  {m.technical_term_accuracy !== null
+                    ? `${m.technical_term_accuracy}%`
+                    : <span className="text-bano-text-subtle">—</span>}
+                </td>
+                <td className="py-2.5 text-right font-mono whitespace-nowrap">
+                  {m.median_latency_sec !== null
+                    ? `${m.median_latency_sec}s`
+                    : <span className="text-bano-text-subtle">—</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-[11px] text-bano-text-subtle leading-relaxed">
+        {data.caveat}{" "}
+        {data.clip_count > 0 && `${data.clip_count} clip${data.clip_count !== 1 ? "s" : ""} evaluated.`}
+      </p>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   return (
-    <div className="container mx-auto max-w-[1200px] px-4">
-      {/* ------------------------------------------------------------------ */}
-      {/* HERO                                                                */}
-      {/* ------------------------------------------------------------------ */}
-      <section className="py-20 sm:py-28 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-        {/* Left column */}
-        <div className="lg:col-span-7 space-y-6">
-          <div className="inline-flex items-center gap-2">
-            <Badge variant="accent" className="px-3 py-1 font-mono text-xs uppercase tracking-widest">
-              Hinglish Lecture Intelligence
-            </Badge>
-          </div>
+    <div className="container mx-auto max-w-[1040px] px-4 py-12 sm:py-20 space-y-16 sm:space-y-24 scroll-smooth">
+      {/* Hero Section */}
+      <MotionReveal id="hero" delayMs={50} className="space-y-8 max-w-3xl scroll-mt-24">
+        <div className="inline-flex items-center gap-2">
+          <Badge variant="accent" className="px-2.5 py-1 text-xs">
+            Hinglish Lecture Intelligence
+          </Badge>
+        </div>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-extrabold tracking-tight text-foreground leading-[1.1]">
-            Your Lectures.{" "}
-            <br className="hidden sm:block" />
-            Your Language.{" "}
-            <br className="hidden sm:block" />
-            <span className="text-bano-accent">Your Learning.</span>
+        <div className="space-y-4">
+          <h1 className="text-3xl sm:text-5xl font-heading font-bold text-foreground tracking-tight leading-[1.2]">
+            Lecture Hinglish mein thi.
+            <br />
+            Notes ab saaf hain.
           </h1>
-
-          <p className="text-lg sm:text-xl text-bano-text-muted max-w-[52ch] leading-relaxed">
-            {BRAND.subheading}
+          <p className="text-lg sm:text-xl text-bano-text-muted leading-relaxed max-w-2xl">
+            Upload ya record karo. Transcript, notes, glossary aur quiz — ek jagah.
           </p>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-4 pt-2">
-            <Button asChild size="lg" className="gap-2">
-              <Link href={ROUTES.SIGNUP}>
-                Get Started Free
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="gap-2">
-              <a href="#features">
-                Explore Features
-                <Sparkles className="h-4 w-4" />
-              </a>
-            </Button>
+        <div className="flex flex-wrap items-center gap-4 pt-2">
+          <Button asChild size="lg" className="gap-2 bg-bano-accent text-white hover:bg-bano-accent-hover font-medium">
+            <Link href={ROUTES.NEW_LECTURE}>
+              Lecture upload karo
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button asChild size="lg" variant="outline" className="gap-2 border-border text-foreground hover:bg-bano-surface-sunken">
+            <Link href={ROUTES.LOGIN}>
+              Sign in
+            </Link>
+          </Button>
+        </div>
+      </MotionReveal>
+
+      {/* Live benchmark widget — public, no auth required */}
+      <MotionReveal id="benchmark" delayMs={100} className="scroll-mt-24">
+        <BenchmarkWidget />
+      </MotionReveal>
+
+      {/* Problem Section: Why Standard STT Fails on Indian Engineering Audio */}
+      <MotionReveal id="features" delayMs={100} className="border-t border-border pt-12 space-y-6 scroll-mt-24">
+        <h2 className="text-xl sm:text-2xl font-heading font-semibold text-foreground">
+          Kyun standard STT engineering lectures pe fail hota hai?
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm text-bano-text-muted leading-relaxed">
+          <div className="space-y-2">
+            <p className="font-semibold text-foreground">Technical code-switching</p>
+            <p>
+              Classroom mein prof bolte hain:{" "}
+              <span className="font-mono text-foreground text-xs bg-bano-surface-sunken px-1.5 py-0.5 rounded">
+                &ldquo;Is function mein recursion tab trigger hoga jab base condition false hogi.&rdquo;
+              </span>{" "}
+              General models isko ya toh pura pure Hindi bana dete hain ya English transliteration tod dete hain.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <p className="font-semibold text-foreground">Dual-script accuracy</p>
+            <p>
+              Exam revision ke liye students ko dono chahiye: Devanagari reading clarity aur Romanized Hinglish search capability. Bano.ai domain terms ko preserve karke notes aur quiz generate karta hai.
+            </p>
+          </div>
+        </div>
+      </MotionReveal>
+
+      {/* Product Flow: 4 Honest Steps */}
+      <MotionReveal id="workflow" delayMs={100} className="border-t border-border pt-12 space-y-8 scroll-mt-24">
+        <div>
+          <span className="font-mono text-xs uppercase tracking-widest text-bano-text-subtle">
+            Workflow
+          </span>
+          <h2 className="text-xl sm:text-2xl font-heading font-semibold text-foreground mt-1">
+            Chaar steps: upload se revision tak
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="p-4 rounded-md border border-border bg-card space-y-2 hover:border-bano-border-strong transition-colors">
+            <span className="font-mono text-xs font-semibold text-bano-accent">01 · UPLOAD</span>
+            <h3 className="font-heading font-semibold text-foreground text-base">Audio ya recording</h3>
+            <p className="text-xs text-bano-text-muted leading-relaxed">
+              Browser se live lecture record karo ya MP3, WAV, M4A file drop karo.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-md border border-border bg-card space-y-2 hover:border-bano-border-strong transition-colors">
+            <span className="font-mono text-xs font-semibold text-bano-accent">02 · TRANSCRIPT</span>
+            <h3 className="font-heading font-semibold text-foreground text-base">Devanagari + Roman</h3>
+            <p className="text-xs text-bano-text-muted leading-relaxed">
+              Synchronized timestamped transcript. One-click script toggle aur term highlight.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-md border border-border bg-card space-y-2 hover:border-bano-border-strong transition-colors">
+            <span className="font-mono text-xs font-semibold text-bano-accent">03 · NOTES &amp; GLOSSARY</span>
+            <h3 className="font-heading font-semibold text-foreground text-base">Structured study material</h3>
+            <p className="text-xs text-bano-text-muted leading-relaxed">
+              Key concepts, technical glossary, aur summary notes bina hallucination ke.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-md border border-border bg-card space-y-2 hover:border-bano-border-strong transition-colors">
+            <span className="font-mono text-xs font-semibold text-bano-accent">04 · QUIZ</span>
+            <h3 className="font-heading font-semibold text-foreground text-base">Grounded practice</h3>
+            <p className="text-xs text-bano-text-muted leading-relaxed">
+              Lecture ke factual content pe based multiple choice questions aur explanations.
+            </p>
+          </div>
+        </div>
+      </MotionReveal>
+
+      {/* Honest Transcript Preview Box */}
+      <MotionReveal id="sample" delayMs={100} className="border border-border rounded-lg bg-card p-6 space-y-4 scroll-mt-24">
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-[11px] font-mono">
+              Sample
+            </Badge>
+            <span className="text-xs text-bano-text-muted">Data Structures &amp; Algorithms</span>
           </div>
         </div>
 
-        {/* Right column — product preview card */}
-        <div className="lg:col-span-5">
-          <Card className="p-6 bg-card border-border shadow-md rounded-xl space-y-4">
-            {/* Card header */}
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <Badge variant="outline" className="font-mono text-[11px] uppercase tracking-wider">
-                Hinglish Transcript
-              </Badge>
-              <span className="text-xs text-bano-text-subtle font-mono">00:12 / 47:20</span>
-            </div>
-
-            {/* Dual-script content */}
-            <div className="space-y-3">
-              <div className="rounded-md bg-bano-surface-sunken p-3.5 space-y-1">
-                <span className="text-[11px] font-mono uppercase text-bano-text-subtle">
-                  Devanagari view (lang=&quot;hi&quot;)
-                </span>
-                <p className="font-devanagari text-sm text-foreground leading-relaxed" lang="hi">
-                  आज हम बाइनरी सर्च ट्री के बारे में बात करेंगे। इंसर्शन ऑपरेशन में टाइम कॉम्प्लेक्सिटी O(log n) होती है।
-                </p>
-              </div>
-
-              <div className="rounded-md bg-bano-surface-sunken p-3.5 space-y-1">
-                <span className="text-[11px] font-mono uppercase text-bano-text-subtle">
-                  Roman Hinglish view (lang=&quot;hi-Latn&quot;)
-                </span>
-                <p className="font-sans text-sm text-foreground leading-relaxed" lang="hi-Latn">
-                  Aaj hum binary search tree ke baare mein baat karenge. Insertion operation mein time complexity O(log n) hoti hai.
-                </p>
-              </div>
-            </div>
-
-            {/* Card footer — factual items only, no accuracy claims */}
-            <div className="pt-2 space-y-2">
-              <div className="flex items-center gap-1.5 text-xs text-bano-text-muted">
-                <CheckCircle2 className="h-3.5 w-3.5 text-bano-accent shrink-0" />
-                Devanagari and Roman script views
-              </div>
-              <div className="flex items-center gap-1.5 text-xs text-bano-text-muted">
-                <CheckCircle2 className="h-3.5 w-3.5 text-bano-accent shrink-0" />
-                Timestamped lecture segments
-              </div>
-              <Separator className="mt-2" />
-              {/* Script toggle — visual preview only, clearly non-functional */}
-              <p className="text-[11px] font-mono text-bano-text-subtle text-center pt-1">
-                ↕ Script view toggle — preview only
-              </p>
-            </div>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-bano-surface-sunken p-3.5 rounded space-y-1.5">
+            <span className="text-[10px] font-mono text-bano-text-subtle uppercase">Devanagari Script</span>
+            <p className="font-devanagari text-sm text-foreground leading-relaxed">
+              आज हम <span className="highlighter-term">recursion</span> समझेंगे। जब एक function खुद को call करता है, तो उसे <span className="highlighter-term">recursive call</span> कहते हैं।
+            </p>
+          </div>
+          <div className="bg-bano-surface-sunken p-3.5 rounded space-y-1.5">
+            <span className="text-[10px] font-mono text-bano-text-subtle uppercase">Roman Hinglish Script</span>
+            <p className="text-sm text-foreground leading-relaxed">
+              Aaj hum <span className="highlighter-term">recursion</span> samjhenge. Jab ek function khud ko call karta hai, toh use <span className="highlighter-term">recursive call</span> kehte hain.
+            </p>
+          </div>
         </div>
-      </section>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* FEATURES                                                            */}
-      {/* ------------------------------------------------------------------ */}
-      <section id="features" className="py-16 sm:py-20 border-t border-border scroll-mt-20">
-        <div className="mb-12 text-center space-y-3">
-          <span className="font-mono text-xs uppercase tracking-widest text-bano-text-subtle">
-            Features
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-heading font-bold text-foreground">
-            Everything your lecture needs
+        <p className="text-xs text-bano-text-muted">AI ne banaya — teacher ka exact statement nahi.</p>
+      </MotionReveal>
+
+      {/* Bottom CTA */}
+      <MotionReveal delayMs={100} className="border-t border-border pt-12 pb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+        <div>
+          <h2 className="text-2xl font-heading font-bold text-foreground">
+            Apni lecture abhi test karo
           </h2>
-          <p className="text-bano-text-muted max-w-[52ch] mx-auto">
-            From raw audio to structured study material — Bano.ai covers every step of the learning journey.
+          <p className="text-sm text-bano-text-muted mt-1">
+            Free dev environment. Kisi card ya credit ki zaroorat nahi.
           </p>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {FEATURES.map(({ icon: Icon, title, description }) => (
-            <Card
-              key={title}
-              className="p-6 hover:border-bano-accent/40 transition-colors duration-200 group"
-            >
-              <div className="mb-4 inline-flex items-center justify-center rounded-full bg-bano-accent-soft p-2.5">
-                <Icon className="h-5 w-5 text-bano-accent" aria-hidden />
-              </div>
-              <h3 className="mb-2 font-heading font-semibold text-base text-foreground">
-                {title}
-              </h3>
-              <p className="text-sm text-bano-text-muted leading-relaxed">{description}</p>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      {/* ------------------------------------------------------------------ */}
-      {/* HOW IT WORKS                                                        */}
-      {/* ------------------------------------------------------------------ */}
-      <section id="how-it-works" className="py-16 sm:py-20 border-t border-border scroll-mt-20">
-        <div className="mb-12 text-center space-y-3">
-          <span className="font-mono text-xs uppercase tracking-widest text-bano-text-subtle">
-            How it works
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-heading font-bold text-foreground">
-            Three steps to smarter study
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {HOW_IT_WORKS.map(({ num, title, description }) => (
-            <div key={num} className="flex flex-col items-start gap-4">
-              <span
-                className="font-mono text-5xl font-bold text-bano-surface-sunken select-none leading-none"
-                aria-hidden
-              >
-                {num}
-              </span>
-              <div>
-                <h3 className="mb-2 font-heading font-semibold text-lg text-foreground">
-                  {title}
-                </h3>
-                <p className="text-sm text-bano-text-muted leading-relaxed">{description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ------------------------------------------------------------------ */}
-      {/* BENCHMARK                                                           */}
-      {/* ------------------------------------------------------------------ */}
-      <section id="benchmark" className="py-16 sm:py-20 border-t border-border scroll-mt-20">
-        <div className="max-w-2xl mx-auto text-center space-y-6">
-          <span className="font-mono text-xs uppercase tracking-widest text-bano-text-subtle">
-            Research
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-heading font-bold text-foreground">
-            Model Benchmarking
-          </h2>
-          <p className="text-bano-text-muted leading-relaxed">
-            Bano.ai evaluates speech-recognition models on the same technical Hinglish lecture samples,
-            measuring word-level and character-level error rates to compare model quality objectively.
-            Results are computed server-side from real transcription runs — no fabricated numbers.
-          </p>
-          <Button asChild variant="outline" className="gap-2">
-            <Link href={ROUTES.BENCHMARK}>
-              View benchmark
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
-      </section>
-
-      {/* ------------------------------------------------------------------ */}
-      {/* CTA                                                                 */}
-      {/* ------------------------------------------------------------------ */}
-      <section className="py-16 sm:py-20 border-t border-border">
-        <div className="rounded-2xl bg-bano-surface-sunken border border-border p-10 sm:p-16 text-center space-y-6">
-          <h2 className="text-3xl sm:text-4xl font-heading font-bold text-foreground">
-            Ready to start?
-          </h2>
-          <p className="text-bano-text-muted max-w-[44ch] mx-auto leading-relaxed">
-            Create a free account and turn your first Hinglish lecture into structured notes in minutes.
-          </p>
-          <Button asChild size="lg" className="gap-2">
-            <Link href={ROUTES.SIGNUP}>
-              Get Started Free
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
-      </section>
+        <Button asChild size="lg" className="bg-bano-accent text-white hover:bg-bano-accent-hover font-medium">
+          <Link href={ROUTES.NEW_LECTURE}>
+            Lecture upload karo
+          </Link>
+        </Button>
+      </MotionReveal>
     </div>
   );
 }

@@ -21,11 +21,34 @@ export function MarketingNavbar() {
   }, []);
 
   const navLinks = [
-    { label: "Home", href: "/#hero" },
-    { label: "Features", href: "/#features" },
-    { label: "How It Works", href: "/#how-it-works" },
-    { label: "Benchmark", href: "/#benchmark" },
+    { label: "Home", href: "/#hero", targetId: "hero" },
+    { label: "Benchmark", href: "/#benchmark", targetId: "benchmark" },
+    { label: "Features", href: "/#features", targetId: "features" },
+    { label: "Workflow", href: "/#workflow", targetId: "workflow" },
+    { label: "Sample", href: "/#sample", targetId: "sample" },
   ];
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
+    // If on homepage, smooth scroll directly to target section
+    if (window.location.pathname === "/" || window.location.pathname === "") {
+      const element = document.getElementById(targetId);
+      if (element) {
+        e.preventDefault();
+        const headerOffset = 84;
+        const elementPosition = element.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: "smooth",
+        });
+
+        // Update URL hash without jumping
+        window.history.pushState(null, "", `#${targetId}`);
+        setMobileOpen(false);
+      }
+    }
+  };
 
   return (
     <header
@@ -41,9 +64,6 @@ export function MarketingNavbar() {
           <span className="font-heading font-bold text-xl tracking-tight text-foreground">
             bano<span className="text-bano-accent">.</span>ai
           </span>
-          <span className="rounded-sm bg-bano-surface-sunken border border-border px-1.5 py-0.5 text-[10px] font-mono text-bano-text-subtle uppercase">
-            v1.0
-          </span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -52,7 +72,8 @@ export function MarketingNavbar() {
             <Link
               key={link.label}
               href={link.href}
-              className="transition-colors hover:text-foreground"
+              onClick={(e) => handleNavClick(e, link.targetId)}
+              className="transition-colors hover:text-foreground cursor-pointer"
             >
               {link.label}
             </Link>
@@ -86,17 +107,14 @@ export function MarketingNavbar() {
                   <span className="font-heading font-bold text-xl tracking-tight text-foreground">
                     bano<span className="text-bano-accent">.</span>ai
                   </span>
-                  <span className="rounded-sm bg-bano-surface-sunken border border-border px-1.5 py-0.5 text-[10px] font-mono text-bano-text-subtle uppercase">
-                    v1.0
-                  </span>
                 </div>
                 <nav className="flex flex-col space-y-4">
                   {navLinks.map((link) => (
                     <Link
                       key={link.label}
                       href={link.href}
-                      onClick={() => setMobileOpen(false)}
-                      className="text-base font-medium text-bano-text hover:text-bano-accent"
+                      onClick={(e) => handleNavClick(e, link.targetId)}
+                      className="text-base font-medium text-bano-text hover:text-bano-accent cursor-pointer"
                     >
                       {link.label}
                     </Link>

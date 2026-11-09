@@ -11,7 +11,6 @@ import {
   Calendar,
   Clock,
   BookOpen,
-  Sparkles,
 } from "lucide-react";
 
 interface OverviewTabProps {
@@ -131,7 +130,7 @@ export function OverviewTab({ lecture, onNavigateTab }: OverviewTabProps) {
                 </span>
               </div>
               <h3 className="font-heading font-semibold text-base">
-                Smart Technical Notes
+                Technical Notes
               </h3>
               <p className="text-xs text-bano-text-muted leading-relaxed">
                 Concise bullet points, core properties, and referenced time ranges generated from your lecture.
@@ -152,8 +151,8 @@ export function OverviewTab({ lecture, onNavigateTab }: OverviewTabProps) {
           <Card className="p-5 flex flex-col justify-between space-y-4">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-bano-accent uppercase tracking-wider">
-                  <Sparkles className="h-3.5 w-3.5" /> Summary &amp; Glossary
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-bano-secondary-ink uppercase tracking-wider">
+                  <BookOpen className="h-3.5 w-3.5" /> Summary &amp; Glossary
                 </span>
                 <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-bano-success-soft text-bano-success">
                   {isCompleted ? "Available" : "Processing"}
@@ -192,7 +191,7 @@ export function OverviewTab({ lecture, onNavigateTab }: OverviewTabProps) {
                 Important Questions
               </h3>
               <p className="text-xs text-bano-text-muted leading-relaxed">
-                Curated exam questions with suggested model answers and source timestamp references.
+                Curated exam questions with suggested model answers.
               </p>
             </div>
 

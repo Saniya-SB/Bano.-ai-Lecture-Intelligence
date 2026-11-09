@@ -22,7 +22,8 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        heading: ["var(--font-manrope)", "sans-serif"],
+        heading: ["var(--font-serif)", "Georgia", "serif"],
+        serif: ["var(--font-serif)", "Georgia", "serif"],
         sans: ["var(--font-inter)", "sans-serif"],
         mono: ["var(--font-jetbrains-mono)", "monospace"],
         devanagari: ["var(--font-noto-sans-devanagari)", "sans-serif"],

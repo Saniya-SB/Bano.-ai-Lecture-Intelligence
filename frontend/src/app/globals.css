@@ -4,51 +4,107 @@
 
 @layer base {
   :root {
-    /* Page & Surfaces */
-    --bg: #F6F2E9;
-    --surface-sunken: #EFE9DC;
-    --card: #FFFDFA;
-    --border: #E8E0D3;
-    --border-strong: #D8CEBD;
+    /* Page & Surfaces (Study Notebook aesthetic) */
+    --bg: #FAF7F2;
+    --surface-sunken: #F0ECE1;
+    --card: #FFFFFF;
+    --border: #E5DFC9;
+    --border-strong: #D4CBAC;
 
     /* Text */
-    --text: #25251F;
-    --text-muted: #6B6A61;
-    --text-subtle: #77766D;
+    --text: #1C1B1A;
+    --text-muted: #5C5852;
+    --text-subtle: #7A746B;
 
-    /* Accent & Brand */
-    --accent: #B85C43;
-    --accent-hover: #A24E38;
-    --accent-pressed: #8E4330;
-    --accent-soft: #F4E3DC;
+    /* Accent & Brand: Marigold highlighter yellow */
+    --accent: #F2B705;
+    --accent-hover: #D9A404;
+    --accent-pressed: #BF9003;
+    --accent-soft: #FEF6DC;
+
+    /* Secondary: Deep ink blue for links & study notebook actions */
+    --secondary-ink: #1F3A5F;
+    --secondary-ink-hover: #162B46;
 
     /* Status Semantics */
-    --success: #3F6B4E;
-    --success-soft: #E6EFE5;
-    --warning: #8A5A12;
-    --warning-soft: #F7EBD2;
-    --danger: #A33A30;
-    --danger-soft: #F8E3DF;
-    --info: #3F5F7A;
-    --info-soft: #E4ECF2;
+    --success: #2E6B3E;
+    --success-soft: #E8F4EC;
+    --warning: #B37D00;
+    --warning-soft: #FEF8E7;
+    --danger: #B3261E;
+    --danger-soft: #FDECEB;
+    --info: #1F3A5F;
+    --info-soft: #EBF1F8;
 
     /* shadcn standard mapping */
-    --background: #F6F2E9;
-    --foreground: #25251F;
-    --card-foreground: #25251F;
-    --popover: #FFFDFA;
-    --popover-foreground: #25251F;
-    --primary: #B85C43;
-    --primary-foreground: #FFFDFA;
-    --secondary: #FFFDFA;
-    --secondary-foreground: #25251F;
-    --muted: #EFE9DC;
-    --muted-foreground: #6B6A61;
-    --destructive: #A33A30;
-    --destructive-foreground: #FFFDFA;
-    --input: #D8CEBD;
-    --ring: #B85C43;
-    --radius: 0.75rem;
+    --background: #FAF7F2;
+    --foreground: #1C1B1A;
+    --card-foreground: #1C1B1A;
+    --popover: #FFFFFF;
+    --popover-foreground: #1C1B1A;
+    --primary: #1F3A5F;
+    --primary-foreground: #FFFFFF;
+    --secondary: #FFFFFF;
+    --secondary-foreground: #1C1B1A;
+    --muted: #F0ECE1;
+    --muted-foreground: #5C5852;
+    --destructive: #B3261E;
+    --destructive-foreground: #FFFFFF;
+    --input: #D4CBAC;
+    --ring: #F2B705;
+    --radius: 0.5rem; /* 8px restrained radius */
+  }
+
+  .dark {
+    /* Warm Charcoal Dark Palette per Design Brief */
+    --bg: #1A1918;
+    --surface-sunken: #141312;
+    --card: #242321;
+    --border: #383531;
+    --border-strong: #4F4B46;
+
+    /* Text */
+    --text: #FAF7F2;
+    --text-muted: #B5AFA6;
+    --text-subtle: #8C867D;
+
+    /* Accent & Brand: Same Marigold highlighter yellow */
+    --accent: #F2B705;
+    --accent-hover: #D9A404;
+    --accent-pressed: #BF9003;
+    --accent-soft: #332B14;
+
+    /* Secondary: Deep ink blue */
+    --secondary-ink: #3B6A9F;
+    --secondary-ink-hover: #5080BA;
+
+    /* Status Semantics */
+    --success: #4E9A62;
+    --success-soft: #1C2E21;
+    --warning: #E0A825;
+    --warning-soft: #302613;
+    --danger: #D9534F;
+    --danger-soft: #331A19;
+    --info: #4E82B4;
+    --info-soft: #172433;
+
+    /* shadcn standard mapping */
+    --background: #1A1918;
+    --foreground: #FAF7F2;
+    --card-foreground: #FAF7F2;
+    --popover: #242321;
+    --popover-foreground: #FAF7F2;
+    --primary: #F2B705;
+    --primary-foreground: #1C1B1A;
+    --secondary: #242321;
+    --secondary-foreground: #FAF7F2;
+    --muted: #242321;
+    --muted-foreground: #B5AFA6;
+    --destructive: #D9534F;
+    --destructive-foreground: #FFFFFF;
+    --input: #383531;
+    --ring: #F2B705;
+    --radius: 0.5rem;
   }
 
   * {
@@ -74,5 +130,16 @@
 @layer utilities {
   .tabular-nums {
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Highlighter style underline on technical terms */
+  .highlighter-term {
+    background-image: linear-gradient(120deg, rgba(242, 183, 5, 0.4) 0%, rgba(242, 183, 5, 0.4) 100%);
+    background-repeat: no-repeat;
+    background-size: 100% 35%;
+    background-position: 0 88%;
+    font-weight: 600;
+    padding: 0 1px;
+    border-radius: 2px;
   }
 }

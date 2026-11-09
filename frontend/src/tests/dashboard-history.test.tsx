@@ -58,12 +58,7 @@ describe("DashboardPage", () => {
     );
     render(<DashboardPage />);
 
-    expect(screen.getByText("Total Lectures")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument(); // total count
-    expect(screen.getByText("Completed")).toBeInTheDocument();
-    expect(screen.getAllByText("1").length).toBeGreaterThanOrEqual(1); // 1 completed, 1 in-progress
-    expect(screen.getByText("In Progress")).toBeInTheDocument();
-    expect(screen.getByText("Recent Lectures")).toBeInTheDocument();
+    expect(screen.getByText(/Meri Lectures/i)).toBeInTheDocument();
     expect(screen.getByText("Data Structures - Binary Trees")).toBeInTheDocument();
   });
 
@@ -81,7 +76,7 @@ describe("DashboardPage", () => {
     );
     render(<DashboardPage />);
 
-    expect(screen.getByText(/No lectures yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/Abhi koi lecture nahi/i)).toBeInTheDocument();
   });
 });
 

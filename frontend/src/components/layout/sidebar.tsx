@@ -131,7 +131,7 @@ export function Sidebar({ className }: { className?: string }) {
         })}
 
         <div className="px-3 py-2 text-[11px] font-mono text-bano-text-subtle">
-          Bano.ai v1.0 &bull; Hinglish
+          Bano.ai &bull; Hinglish
         </div>
       </div>
     </aside>

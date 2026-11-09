@@ -10,25 +10,24 @@ import {
   Copy,
   Check,
   FileText,
-  ChevronDown,
-  ChevronRight,
   Megaphone,
   Coffee,
   BookOpen,
-  Sparkles,
+  Code2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 interface TranscriptViewerProps {
   transcript: Transcript;
+  glossaryTerms?: string[];
   onTimestampClick?: (timestampSeconds: number) => void;
 }
 
 export function TranscriptViewer({
   transcript,
+  glossaryTerms = [],
   onTimestampClick,
 }: TranscriptViewerProps) {
-  // Client-side script preference
   const defaultScript: ScriptMode = transcript.availableScripts.includes("devanagari")
     ? "devanagari"
     : "roman";
@@ -46,6 +45,15 @@ export function TranscriptViewer({
       [segmentId]: !prev[segmentId],
     }));
   };
+  const cleanedGlossaryTerms = useMemo(() => {
+    return Array.from(
+      new Set(
+        glossaryTerms
+          .map((t) => t.trim())
+          .filter((t) => t.length > 1)
+      )
+    ).sort((a, b) => b.length - a.length); // match longest first
+  }, [glossaryTerms]);
 
   // Compute matches
   const { segmentsWithMatches, totalMatches } = useMemo(() => {
@@ -95,7 +103,6 @@ export function TranscriptViewer({
     setCurrentMatchIndex((prev) => (prev - 1 + totalMatches) % totalMatches);
   };
 
-  // Copy visible script text with optional timestamps
   const handleCopy = async (includeTimestamps: boolean) => {
     try {
       const text = transcript.segments
@@ -122,53 +129,89 @@ export function TranscriptViewer({
     }
   };
 
-  // Helper to render text with highlighted search query
-  const renderHighlightedText = (text: string) => {
+  // Helper to highlight search matches AND apply marigold highlighter underline to technical terms
+  const renderFormattedText = (text: string) => {
     const query = searchQuery.trim();
-    if (!query) return text;
 
-    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+    // If no search query and no glossary terms, return plain text
+    if (!query && cleanedGlossaryTerms.length === 0) {
+      return text;
+    }
+
+    // Build regex to capture search match or glossary terms
+    const patterns: string[] = [];
+    if (query) {
+      patterns.push(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    }
+    cleanedGlossaryTerms.forEach((term) => {
+      patterns.push(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    });
+
+    if (patterns.length === 0) return text;
+
+    const regex = new RegExp(`(${patterns.join("|")})`, "gi");
     const parts = text.split(regex);
 
-    return parts.map((part, i) =>
-      regex.test(part) ? (
-        <mark
-          key={i}
-          className="bg-bano-accent-soft text-foreground font-semibold px-0.5 rounded"
-        >
-          {part}
-        </mark>
-      ) : (
-        part
-      )
-    );
+    return parts.map((part, i) => {
+      if (!part) return null;
+      const lowerPart = part.toLowerCase();
+
+      // Priority 1: Search match
+      if (query && lowerPart === query.toLowerCase()) {
+        return (
+          <mark
+            key={i}
+            className="bg-bano-accent text-bano-text font-semibold px-1 rounded-sm"
+          >
+            {part}
+          </mark>
+        );
+      }
+
+      // Priority 2: Technical glossary term (highlighter-style underline per Design Brief)
+      const isGlossaryTerm = cleanedGlossaryTerms.some(
+        (t) => t.toLowerCase() === lowerPart
+      );
+      if (isGlossaryTerm) {
+        return (
+          <span
+            key={i}
+            className="highlighter-term cursor-help"
+            title={`Technical term: ${part}`}
+          >
+            {part}
+          </span>
+        );
+      }
+
+      return part;
+    });
   };
 
-  // Helper badge for segment classification
   const renderSegmentBadge = (type?: SegmentType) => {
     switch (type) {
       case "off_topic":
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-bano-text-subtle bg-bano-surface-sunken px-2 py-0.5 rounded-full border border-border">
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-bano-text-subtle bg-bano-surface-sunken px-2 py-0.5 rounded border border-border">
             <Coffee className="h-3 w-3" /> Off-Topic
           </span>
         );
       case "admin":
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-bano-accent bg-bano-accent-soft px-2 py-0.5 rounded-full">
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-bano-secondary-ink bg-bano-info-soft px-2 py-0.5 rounded border border-bano-secondary-ink/20">
             <Megaphone className="h-3 w-3" /> Announcement
           </span>
         );
       case "example":
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-bano-info bg-bano-info-soft px-2 py-0.5 rounded-full">
-            <Sparkles className="h-3 w-3" /> Example
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-bano-text bg-bano-surface-sunken px-2 py-0.5 rounded border border-border">
+            <Code2 className="h-3 w-3 text-bano-secondary-ink" /> Example
           </span>
         );
       case "concept":
       default:
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-bano-text-muted bg-bano-surface-sunken px-2 py-0.5 rounded-full">
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-bano-text-muted bg-bano-surface-sunken px-2 py-0.5 rounded border border-border">
             <BookOpen className="h-3 w-3" /> Concept
           </span>
         );
@@ -177,8 +220,8 @@ export function TranscriptViewer({
 
   return (
     <div className="space-y-4">
-      {/* Top Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-card rounded-lg border border-border">
+      {/* Top Controls Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-card rounded-md border border-border">
         <div className="flex flex-wrap items-center gap-3">
           <ScriptSelector
             currentScript={currentScript}
@@ -202,7 +245,7 @@ export function TranscriptViewer({
           />
         </div>
 
-        {/* Copy actions */}
+        {/* Action Controls */}
         <div className="flex items-center gap-2 shrink-0">
           <Button
             type="button"
@@ -224,7 +267,7 @@ export function TranscriptViewer({
             variant="ghost"
             size="sm"
             onClick={() => handleCopy(true)}
-            className="text-xs h-8 text-bano-text-muted hover:text-foreground"
+            className="text-xs h-8 text-bano-text-muted hover:text-bano-text"
             title="Copy with timestamps"
           >
             With Timestamps
@@ -232,9 +275,9 @@ export function TranscriptViewer({
         </div>
       </div>
 
-      {/* Segments Display Area */}
+      {/* Two-Column Reading Layout (per docs/DESIGN_BRIEF.md) */}
       <div
-        className="p-6 bg-bano-surface-sunken rounded-lg border border-border space-y-4 max-h-[700px] overflow-y-auto"
+        className="p-6 bg-card rounded-md border border-border divide-y divide-border/60 max-h-[750px] overflow-y-auto"
         tabIndex={0}
         aria-label="Transcript content"
       >
@@ -253,84 +296,68 @@ export function TranscriptViewer({
             const isDevanagari = currentScript === "devanagari";
             const isOffTopic = segment.segmentType === "off_topic";
             const isAdmin = segment.segmentType === "admin";
-            const isExpanded = isOffTopicExpanded[segment.id] ?? false;
 
             return (
               <div
                 key={segment.id}
+                id={`seg-${segment.id}`}
                 style={{ contentVisibility: "auto" }}
-                className={`group flex flex-col p-3 rounded-md transition-colors border ${
-                  isOffTopic
-                    ? "bg-card/40 border-dashed border-border opacity-70"
-                    : isAdmin
-                    ? "bg-bano-accent-soft/20 border-bano-accent/20"
-                    : "hover:bg-card/70 border-transparent"
-                }`}
+                className={`py-4 first:pt-0 last:pb-0 grid grid-cols-1 md:grid-cols-[140px_1fr] gap-3 md:gap-6 items-baseline transition-colors ${
+                  isOffTopic ? "opacity-60 bg-bano-surface-sunken/40 px-3 rounded" : ""
+                } ${isAdmin ? "bg-bano-info-soft/30 px-3 rounded" : ""}`}
               >
-                {/* Segment Header: Timestamp + Classification Badge + Optional Collapse */}
-                <div className="flex items-center justify-between pb-1 gap-2">
-                  <div className="flex items-center gap-2">
-                    {onTimestampClick ? (
-                      <button
-                        type="button"
-                        onClick={() => onTimestampClick(segment.startTime)}
-                        className="font-mono text-xs text-bano-accent hover:underline font-medium select-none"
-                        title="Jump to timestamp"
-                      >
-                        {formatTimestamp(segment.startTime)}
-                      </button>
-                    ) : (
-                      <span className="font-mono text-xs text-bano-text-subtle select-none font-medium">
-                        {formatTimestamp(segment.startTime)}
-                      </span>
-                    )}
+                {/* Margin Column: Left-aligned timestamp & classification badge */}
+                <div className="flex md:flex-col items-center md:items-start justify-between md:justify-start gap-1.5 select-none shrink-0">
+                  {onTimestampClick ? (
+                    <button
+                      type="button"
+                      onClick={() => onTimestampClick(segment.startTime)}
+                      className="font-mono text-xs text-bano-secondary-ink hover:underline font-semibold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded px-1 -ml-1"
+                      title="Jump to audio timestamp"
+                    >
+                      {formatTimestamp(segment.startTime)}
+                    </button>
+                  ) : (
+                    <span className="font-mono text-xs text-bano-text-subtle font-medium">
+                      {formatTimestamp(segment.startTime)}
+                    </span>
+                  )}
 
-                    {renderSegmentBadge(segment.segmentType)}
-                  </div>
+                  {renderSegmentBadge(segment.segmentType)}
 
-                  {/* Off-topic collapse toggle */}
                   {isOffTopic && (
                     <button
                       type="button"
                       onClick={() => toggleOffTopicCollapse(segment.id)}
-                      className="inline-flex items-center gap-1 text-[11px] text-bano-text-muted hover:text-foreground font-medium"
-                      aria-expanded={isExpanded}
-                      aria-label={isExpanded ? "Collapse off-topic segment" : "Expand off-topic segment"}
+                      className="text-[10px] text-bano-text-subtle hover:text-bano-text font-medium underline mt-0.5"
+                      aria-label={isOffTopicExpanded[segment.id] ? "Collapse off-topic segment" : "Expand off-topic segment"}
                     >
-                      {isExpanded ? (
-                        <>
-                          <span>Collapse</span>
-                          <ChevronDown className="h-3 w-3" />
-                        </>
-                      ) : (
-                        <>
-                          <span>Show off-topic talk</span>
-                          <ChevronRight className="h-3 w-3" />
-                        </>
-                      )}
+                      {isOffTopicExpanded[segment.id] ? "Collapse" : "Expand"}
                     </button>
                   )}
                 </div>
 
-                {/* Text Body (Collapsed if off-topic and not toggled) */}
-                {(!isOffTopic || isExpanded) ? (
-                  <div
-                    lang={isDevanagari ? "hi" : "hi-Latn"}
-                    className={`mt-1 text-foreground leading-relaxed ${
-                      isOffTopic ? "italic text-bano-text-muted text-sm" : ""
-                    } ${
-                      isDevanagari
-                        ? "font-devanagari text-base"
-                        : "font-sans text-sm"
-                    }`}
-                  >
-                    {renderHighlightedText(rawText)}
-                  </div>
-                ) : (
-                  <p className="mt-0.5 text-xs text-bano-text-subtle italic">
-                    Off-topic discussion hidden ({formatTimestamp(segment.startTime)} - {formatTimestamp(segment.endTime)}). Click &ldquo;Show off-topic talk&rdquo; to expand.
-                  </p>
-                )}
+                {/* Content Column: Text-first reading layout */}
+                <div
+                  lang={isDevanagari ? "hi" : "hi-Latn"}
+                  className={`leading-relaxed ${
+                    isOffTopic
+                      ? "italic text-bano-text-muted text-sm"
+                      : "text-bano-text text-base"
+                  } ${
+                    isDevanagari
+                      ? "font-devanagari text-[17px] leading-[1.8]"
+                      : "font-sans text-[16px] leading-[1.75]"
+                  }`}
+                >
+                  {isOffTopic && !isOffTopicExpanded[segment.id] ? (
+                    <span className="text-xs text-bano-text-subtle">
+                      Off-topic discussion hidden ({formatTimestamp(segment.startTime)} - {formatTimestamp(segment.endTime)}). Click &ldquo;Expand&rdquo; to view.
+                    </span>
+                  ) : (
+                    renderFormattedText(rawText)
+                  )}
+                </div>
               </div>
             );
           })

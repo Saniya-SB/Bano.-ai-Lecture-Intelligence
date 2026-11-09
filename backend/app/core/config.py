@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     # Environment & Auth mode
     ENVIRONMENT: Literal["development", "test", "production"] = "development"
     AUTH_MODE: Literal["dev", "firebase"] = "dev"
+    DEV_MARK_UPLOADS_AS_TEST: bool = False
     FIREBASE_CREDENTIALS_PATH: str = ""
     DEV_MOCK_USER_ID: str = "usr_mock_1"
     DEV_MOCK_USER_EMAIL: str = "student@bano.ai"
@@ -49,24 +50,37 @@ class Settings(BaseSettings):
     # Transliteration
     TRANSLITERATION_LLM_FALLBACK: bool = False  # Reserved for future LLM-based fallback; not wired in
 
+    # Ask this Lecture Configuration
+    ASK_LECTURE_MAX_SEGMENTS: int = 5
+    ASK_LECTURE_RATE_LIMIT_PER_MINUTE: int = 10
+    ASK_LECTURE_PROMPT_VERSION: str = "v1.0"
+
     # LLM Settings & Pricing Configuration
-    LLM_PROVIDER: Literal["gemini", "openai"] = "gemini"
+    LLM_PROVIDER: Literal["gemini", "openai", "groq"] = "gemini"
+    LLM_FALLBACK_PROVIDER: Optional[Literal["gemini", "openai", "groq"]] = "groq"
     LLM_TIER: Literal["free", "paid"] = "free"
     
     # Model IDs
     GEMINI_DEFAULT_MODEL: str = "gemini-3.1-flash-lite"
     GEMINI_FALLBACK_MODEL: str = "gemini-3.8-flash"
     OPENAI_DEFAULT_MODEL: str = "gpt-4o-mini"
+    GROQ_DEFAULT_MODEL: str = "qwen/qwen3.8-27b"
+    GROQ_FALLBACK_MODEL: str = "openai/gpt-oss-20b"
     
     # API Keys
     GEMINI_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
+    GROQ_API_KEY: str = ""
     
     # Pricing configuration per 1M tokens (USD)
     LLM_PRICING_PER_1M: dict[str, dict[str, float]] = {
         "gemini-3.1-flash-lite": {"input": 0.25, "output": 1.50},
         "gemini-3.8-flash": {"input": 0.75, "output": 3.75},
         "gpt-4o-mini": {"input": 0.15, "output": 0.60},
+        "llama-3.3-70b-versatile": {"input": 0.59, "output": 0.79},
+        "llama-3.1-8b-instant": {"input": 0.05, "output": 0.08},
+        "qwen/qwen3.8-27b": {"input": 0.20, "output": 0.60},
+        "openai/gpt-oss-20b": {"input": 0.10, "output": 0.30},
     }
     
     # STT Pricing configuration per minute (USD)
@@ -93,7 +107,6 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
-        "http://127.0.0.1:3000"
     ]
 
 

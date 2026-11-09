@@ -119,13 +119,13 @@ export default function LecturesPage() {
       {!isLoading && !isError && lectures.length === 0 && (
         <EmptyState
           icon={BookOpen}
-          title="No lectures found"
-          description="You haven't uploaded any lectures yet. Upload audio or record live in Hinglish to get started."
+          title="Abhi koi lecture nahi"
+          description="Abhi koi lecture nahi. 30 second ka clip upload karke dekho."
           action={
-            <Button asChild className="gap-2">
+            <Button asChild className="gap-2 bg-bano-accent text-white hover:bg-bano-accent-hover">
               <Link href={ROUTES.NEW_LECTURE}>
                 <PlusCircle className="h-4 w-4" />
-                Upload New Lecture
+                Lecture upload karo
               </Link>
             </Button>
           }
@@ -152,7 +152,7 @@ export default function LecturesPage() {
       )}
 
       {!isLoading && !isError && filteredLectures.length > 0 && (
-        <Card className="overflow-hidden border border-border">
+        <div className="border border-border rounded-lg bg-card overflow-hidden">
           <div className="divide-y divide-border">
             {filteredLectures.map((lecture) => {
               const targetHref =
@@ -169,9 +169,9 @@ export default function LecturesPage() {
               return (
                 <div
                   key={lecture.id}
-                  className="p-4 sm:px-6 hover:bg-bano-surface-sunken/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  className="p-4 sm:px-6 hover:bg-bano-surface-sunken/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
-                  <div className="space-y-1.5 min-w-0 flex-1">
+                  <div className="space-y-1 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Link
                         href={targetHref}
@@ -182,7 +182,7 @@ export default function LecturesPage() {
                     </div>
 
                     <div className="flex items-center gap-3 text-xs text-bano-text-muted flex-wrap">
-                      <span className="font-semibold text-bano-text bg-bano-surface-sunken px-2 py-0.5 rounded">
+                      <span className="font-semibold text-bano-text bg-bano-surface-sunken px-2 py-0.5 rounded text-[11px]">
                         {lecture.subject}
                       </span>
                       {lecture.topic && (
@@ -203,7 +203,7 @@ export default function LecturesPage() {
 
                   <div className="flex items-center gap-3 self-start sm:self-center shrink-0">
                     <StatusBadge status={lecture.status as LectureStatus} />
-                    <Button asChild size="sm" variant="outline" className="gap-1.5 h-8 text-xs">
+                    <Button asChild size="sm" variant="outline" className="gap-1.5 h-8 text-xs border-border">
                       <Link href={targetHref}>
                         <span>{lecture.status === "completed" ? "Workspace" : "Status"}</span>
                         <ArrowRight className="h-3.5 w-3.5" />
@@ -214,7 +214,7 @@ export default function LecturesPage() {
               );
             })}
           </div>
-        </Card>
+        </div>
       )}
     </div>
   );

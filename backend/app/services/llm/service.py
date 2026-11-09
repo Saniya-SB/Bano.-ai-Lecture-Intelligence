@@ -39,11 +39,11 @@ def compute_transcript_hash(segments: list[TranscriptSegment]) -> str:
     return hasher.hexdigest()
 
 
-def compute_cache_key(transcript_hash: str, prompt_version: str, task: str = "materials") -> str:
+def compute_cache_key(transcript_hash: str, prompt_version: str, task: str = "materials", provider: str = "", model: str = "") -> str:
     """
-    Computes cache key: SHA256(task + transcript_hash + prompt_version).
+    Computes cache key: SHA256(task + transcript_hash + prompt_version + provider + model).
     """
-    raw = f"{task}:{transcript_hash}:{prompt_version}"
+    raw = f"{task}:{transcript_hash}:{prompt_version}:{provider}:{model}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
@@ -106,7 +106,19 @@ class LearningMaterialService:
             raise AppException(status_code=404, message="Lecture not found", code="NOT_FOUND")
 
         # 2. Strict Privacy Guard
-        self._verify_privacy_tier(lecture)
+        # Check provider data policy:
+        # - Groq terms: No training on API data by default across all tiers (free & paid).
+        # - Gemini terms: Free tier allows model training; only is_test_data permitted.
+        active_provider = getattr(self.provider, "provider_name", settings.LLM_PROVIDER).lower()
+        if active_provider == "gemini":
+            self._verify_privacy_tier(lecture)
+        elif active_provider == "groq":
+            if settings.ENVIRONMENT == "production" and settings.LLM_TIER == "free":
+                raise AppException(
+                    status_code=403,
+                    message="Production environment strictly requires LLM_TIER='paid'.",
+                    code="PRIVACY_GUARD_BLOCKED",
+                )
 
         # 3. Retrieve transcript segments
         transcript = db.execute(
@@ -142,9 +154,17 @@ class LearningMaterialService:
                 code="TRANSCRIPT_EMPTY"
             )
 
-        # 4. Check Cache
+        # 4. Check Cache (provider & model aware)
+        provider_name = getattr(self.provider, "provider_name", settings.LLM_PROVIDER)
+        default_model = getattr(settings, f"{provider_name.upper()}_DEFAULT_MODEL", "default")
         t_hash = compute_transcript_hash(segments)
-        cache_key = compute_cache_key(t_hash, settings.LLM_PROMPT_VERSION, task="combined_materials")
+        cache_key = compute_cache_key(
+            t_hash,
+            settings.LLM_PROMPT_VERSION,
+            task="combined_materials",
+            provider=provider_name,
+            model=default_model,
+        )
 
         if not force_refresh:
             cached_record = db.scalar(
@@ -227,6 +247,8 @@ class LearningMaterialService:
             total_tokens=llm_resp.total_tokens,
             estimated_cost_usd=llm_resp.estimated_cost_usd,
         )
+        token_usage_dict = token_usage.model_dump()
+        token_usage_dict["provider_name"] = llm_resp.provider_name
 
         content_dict = {
             "summary": extracted.summary.model_dump(),
@@ -248,7 +270,7 @@ class LearningMaterialService:
             cache_key=cache_key,
             content=content_dict,
             model_name=llm_resp.model_name,
-            token_usage=token_usage.model_dump(),
+            token_usage=token_usage_dict,
         )
         db.add(db_output)
 
@@ -300,7 +322,16 @@ class LearningMaterialService:
         if not lecture:
             raise AppException(status_code=404, message="Lecture not found", code="NOT_FOUND")
 
-        self._verify_privacy_tier(lecture)
+        active_provider = getattr(self.provider, "provider_name", settings.LLM_PROVIDER).lower()
+        if active_provider == "gemini":
+            self._verify_privacy_tier(lecture)
+        elif active_provider == "groq":
+            if settings.ENVIRONMENT == "production" and settings.LLM_TIER == "free":
+                raise AppException(
+                    status_code=403,
+                    message="Production environment strictly requires LLM_TIER='paid'.",
+                    code="PRIVACY_GUARD_BLOCKED",
+                )
 
         transcript = db.execute(
             select(Transcript).where(Transcript.lecture_id == lecture_id)
@@ -356,8 +387,45 @@ class LearningMaterialService:
             estimated_cost_usd=llm_resp.estimated_cost_usd,
         )
 
-        # Track usage
+        # 7. Persist or Update Quiz Output record
         import uuid
+        cache_key = f"quiz:{lecture_id}:{num_questions}"
+        content_dict = {
+            "questions": [q.model_dump() for q in result.questions],
+        }
+        token_usage_dict = {
+            "prompt_tokens": llm_resp.prompt_tokens,
+            "completion_tokens": llm_resp.completion_tokens,
+            "total_tokens": llm_resp.total_tokens,
+            "estimated_cost_usd": llm_resp.estimated_cost_usd,
+        }
+
+        existing_quiz = db.scalar(
+            select(GeneratedOutput).where(
+                GeneratedOutput.user_id == user_id,
+                GeneratedOutput.cache_key == cache_key,
+            )
+        )
+        if existing_quiz:
+            existing_quiz.content = content_dict
+            existing_quiz.model_name = llm_resp.model_name
+            existing_quiz.token_usage = token_usage_dict
+        else:
+            out_id = f"out_{uuid.uuid4().hex[:12]}"
+            db_output = GeneratedOutput(
+                id=out_id,
+                lecture_id=lecture_id,
+                user_id=user_id,
+                output_type=OutputType.QUIZ.value,
+                prompt_version=settings.LLM_PROMPT_VERSION,
+                cache_key=cache_key,
+                content=content_dict,
+                model_name=llm_resp.model_name,
+                token_usage=token_usage_dict,
+            )
+            db.add(db_output)
+
+        # Track usage
         usage_event = UsageEvent(
             id=f"use_{uuid.uuid4().hex[:12]}",
             user_id=user_id,

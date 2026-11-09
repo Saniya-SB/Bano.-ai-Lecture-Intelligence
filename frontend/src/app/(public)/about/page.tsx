@@ -15,7 +15,7 @@ export default function AboutPage() {
           {BRAND.fullName} is designed specifically for STEM education where professors and students naturally speak Hinglish (a fluid mix of Hindi grammar and English technical terminology).
         </p>
         <p className="text-sm text-bano-text-muted leading-relaxed">
-          Standard speech-to-text models fail on technical Hinglish by hallucinating or dropping crucial engineering terms like Fourier transform, binary search trees, and Carnot cycles. Bano.ai bridges this divide with high-precision transcription, smart notes generation, and transparent model evaluation.
+          Standard speech-to-text models fail on technical Hinglish by hallucinating or dropping crucial engineering terms like Fourier transform, binary search trees, and Carnot cycles. Bano.ai bridges this divide with high-precision transcription, structured notes generation, and transparent model evaluation.
         </p>
       </Card>
     </div>

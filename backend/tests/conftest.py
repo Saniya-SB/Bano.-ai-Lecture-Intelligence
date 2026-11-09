@@ -18,9 +18,12 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_db():
+    original_auth_mode = settings.AUTH_MODE
+    settings.AUTH_MODE = "dev"
     Base.metadata.create_all(bind=test_engine)
     yield
     Base.metadata.drop_all(bind=test_engine)
+    settings.AUTH_MODE = original_auth_mode
 
 
 @pytest.fixture

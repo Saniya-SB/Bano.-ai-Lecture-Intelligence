@@ -3,10 +3,8 @@
 import React, { useState } from "react";
 import { LearningMaterials } from "@/types/domain/materials";
 import { Card } from "@/components/ui/card";
-import { formatTimestamp } from "@/lib/formatters";
 import {
   HelpCircle,
-  Clock,
   AlertCircle,
   FileText,
   ChevronDown,
@@ -18,7 +16,6 @@ interface QuestionsTabProps {
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
-  onTimestampClick?: (seconds: number) => void;
 }
 
 export function QuestionsTab({
@@ -26,9 +23,7 @@ export function QuestionsTab({
   isLoading,
   isError,
   onRetry,
-  onTimestampClick,
 }: QuestionsTabProps) {
-  // Track expanded state for each question (default collapsed, or user expanded)
   const [expandedIndices, setExpandedIndices] = useState<Record<number, boolean>>({});
 
   const toggleExpand = (index: number) => {
@@ -73,7 +68,7 @@ export function QuestionsTab({
   if (!materials || materials.importantQuestions.length === 0) {
     return (
       <Card className="p-12 text-center space-y-3">
-        <HelpCircle className="h-10 w-10 mx-auto text-bano-text-subtle opacity-50" />
+        <FileText className="h-10 w-10 mx-auto text-bano-text-subtle opacity-50" />
         <h3 className="font-heading font-semibold text-base">No questions available</h3>
         <p className="text-xs text-bano-text-muted max-w-sm mx-auto">
           Exam and conceptual questions are extracted once lecture processing completes.
@@ -85,9 +80,18 @@ export function QuestionsTab({
   return (
     <div className="space-y-6">
       {/* Disclaimer */}
-      <div className="p-3 bg-bano-surface-sunken rounded-lg border border-border text-xs text-bano-text-muted flex items-start gap-2">
-        <FileText className="h-4 w-4 text-bano-accent shrink-0 mt-0.5" />
-        <span>{materials.disclaimer}</span>
+      <div className="p-3 bg-bano-surface-sunken rounded-md border border-border text-xs text-bano-text flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2">
+          <span className="font-semibold px-1.5 py-0.5 rounded bg-bano-accent/20 text-bano-text text-[11px] shrink-0">
+            AI ne banaya, teacher ka exact statement nahi.
+          </span>
+          <span className="text-bano-text-muted mt-0.5">{materials.disclaimer}</span>
+        </div>
+        {materials.modelName && (
+          <span className="text-[10px] font-mono text-bano-text-muted shrink-0 mt-0.5">
+            Model: {materials.modelName}
+          </span>
+        )}
       </div>
 
       {/* Questions List */}
@@ -102,30 +106,9 @@ export function QuestionsTab({
                   <span className="font-heading font-bold text-sm text-bano-accent mt-0.5 select-none">
                     Q{idx + 1}.
                   </span>
-                  <div className="space-y-1 flex-1">
-                    <h3 className="font-heading font-semibold text-sm sm:text-base text-foreground leading-snug">
-                      {item.question}
-                    </h3>
-
-                    {/* Timestamp tags */}
-                    {item.referencedTimeRanges && item.referencedTimeRanges.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                        <span className="text-[10px] text-bano-text-subtle flex items-center gap-1">
-                          <Clock className="h-2.5 w-2.5" /> Source time:
-                        </span>
-                        {item.referencedTimeRanges.map((range, rIdx) => (
-                          <button
-                            key={rIdx}
-                            type="button"
-                            onClick={() => onTimestampClick?.(range.start)}
-                            className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-bano-surface-sunken text-bano-accent hover:underline border border-border"
-                          >
-                            {formatTimestamp(range.start)} - {formatTimestamp(range.end)}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <h3 className="font-heading font-semibold text-sm sm:text-base text-foreground leading-snug flex-1">
+                    {item.question}
+                  </h3>
                 </div>
 
                 <button

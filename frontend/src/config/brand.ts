@@ -2,9 +2,9 @@ export const BRAND = {
   name: "Bano.ai",
   tagline: "Lecture Intelligence",
   fullName: "Bano.ai – Lecture Intelligence",
-  headline: "Your Lectures. Your Language. Your Learning.",
+  headline: "Lecture Hinglish mein thi. Notes ab saaf hain.",
   subheading:
-    "Turn Hinglish engineering lectures into accurate transcripts, structured notes and smarter learning material.",
+    "Upload ya record karo. Transcript, notes, glossary aur quiz — ek jagah.",
   version: "1.0.0",
   copyright: `© ${new Date().getFullYear()} Bano.ai. All rights reserved.`,
 } as const;

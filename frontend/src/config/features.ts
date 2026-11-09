@@ -48,7 +48,7 @@ const defaultFlags: FeatureFlags = {
   transcriptEditing: false,
   regenerateNotes: false,
   regenerateOutputs: false,
-  processingRetry: false,
+  processingRetry: true, // Enabled for Phase F2 job retry
   rememberSession: false,
   changePassword: false,
   profileUpdate: false,
@@ -57,8 +57,7 @@ const defaultFlags: FeatureFlags = {
   quota: false,
   resetPasswordConfirm: false,
   serverSideListQuery: false,
-  // Hidden behind flags until backend confirms contracts (see Questions Q4–Q6)
-  browserRecording: false,
+  browserRecording: true, // Enabled for Phase F2 in-browser mic recording
   youtubeIngestion: false,
 };
 

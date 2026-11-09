@@ -207,7 +207,94 @@ All AI-generated sections are explicitly badged with AI attribution disclaimers.
 
 ---
 
-## 9. Honest Limitations
+## 9. Running Frontend and Backend Together
+
+### Option A: Local Development Mode (Dev Auth)
+In local development mode, no Firebase account or cloud credentials are required. Authentication runs locally with `AUTH_MODE=dev`.
+
+1. **Start Backend**:
+   ```bash
+   cd backend
+   source .venv/bin/activate
+   # Ensure backend/.env has:
+   # ENVIRONMENT=development
+   # AUTH_MODE=dev
+   # LLM_TIER=free (or paid if you have a Gemini API key)
+   uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+   ```
+
+2. **Start Frontend**:
+   ```bash
+   cd frontend
+   # Ensure frontend/.env.local has:
+   # NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+   # NEXT_PUBLIC_USE_MOCK_API=false
+   # NEXT_PUBLIC_AUTH_MODE=dev
+   npm run dev
+   ```
+
+3. Open `http://localhost:3000`. You can sign in using any email to test the dev flow.
+
+---
+
+### Option B: Firebase Authentication Mode (Google Sign-In)
+When switching to Firebase Google Sign-In:
+
+1. **Configure Backend (`backend/.env`)**:
+   ```bash
+   AUTH_MODE=firebase
+   FIREBASE_SERVICE_ACCOUNT_PATH=/path/to/firebase-service-account.json
+   ```
+
+2. **Configure Frontend (`frontend/.env.local`)**:
+   ```bash
+   NEXT_PUBLIC_AUTH_MODE=firebase
+   NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSy...
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=bano-807a9.firebaseapp.com
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=bano-807a9
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=bano-807a9.firebasestorage.app
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=240872890224
+   NEXT_PUBLIC_FIREBASE_APP_ID=1:240872890224:web:ef9052dfc5aacdc0c239b5
+   NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=G-6MN46R62NS
+   ```
+
+3. Start both services. The "Continue with Google" button on `/login` and `/signup` will authenticate via Firebase and send ID tokens as `Authorization: Bearer <ID_TOKEN>` to the backend.
+
+---
+
+## 10. Production Deployment Checklist
+
+### Frontend (e.g. Vercel)
+- [ ] Connect repo and set Root Directory to `frontend`.
+- [ ] Set environment variables in Vercel project settings:
+  - `NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api/v1`
+  - `NEXT_PUBLIC_USE_MOCK_API=false`
+  - `NEXT_PUBLIC_AUTH_MODE=firebase`
+  - `NEXT_PUBLIC_FIREBASE_API_KEY`
+  - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+  - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+  - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+  - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+  - `NEXT_PUBLIC_FIREBASE_APP_ID`
+  - `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`
+- [ ] In Firebase Console > Authentication > Authorized Domains, add your Vercel deployment domain (e.g. `your-app.vercel.app` and custom domain).
+
+### Backend Host (e.g. Cloud Run / Render / VPS)
+- [ ] Ensure system binaries are available: `ffmpeg`, `ffprobe`.
+- [ ] Enforce production settings in environment:
+  - `ENVIRONMENT=production` *(Hard blocker: backend refuses to boot if `AUTH_MODE=dev` under `ENVIRONMENT=production`)*
+  - `AUTH_MODE=firebase`
+  - `FIREBASE_SERVICE_ACCOUNT_PATH` (or base64 JSON credential secret)
+  - `LLM_TIER=paid` *(Hard blocker: `ENVIRONMENT=production` blocks `free` LLM tier to prevent student classroom audio from training AI models)*
+  - `GEMINI_API_KEY` (paid Gemini API key)
+  - `GNANI_TOKEN` and `GNANI_ACCESS_KEY`
+  - `DATABASE_URL` (PostgreSQL connection string with SSL)
+  - `CORS_ORIGINS=["https://your-frontend-domain.com"]`
+  - `APP_SECRET_KEY` (secure random string)
+
+---
+
+## 11. Honest Limitations
 
 1. **YouTube Audio Scraping**: Direct downloading of arbitrary video or audio streams from YouTube URLs is not supported. The `POST /api/v1/uploads/youtube` endpoint performs SSRF validation and returns a clear `501 Not Implemented` stub. Captions or direct audio uploads must be provided.
 2. **Real-time Live Streaming STT**: The transcription pipeline processes audio asynchronously via chunked batch or post-recording ingestion. Low-latency word-by-word streaming during live lectures is not supported; transcription initiates upon recording completion.

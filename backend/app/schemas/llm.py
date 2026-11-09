@@ -119,3 +119,20 @@ class QuizPayload(BaseModel):
     token_usage: TokenUsage
     questions: list[QuizQuestion]
 
+
+# --- Ask This Lecture Schema ---
+
+class AskLectureRequest(BaseModel):
+    question: str = Field(..., min_length=2, max_length=1000)
+
+
+class AskLectureGenerationResult(BaseModel):
+    answered: bool = Field(description="True if answered from the transcript, False if the lecture does not cover it")
+    answer: str = Field(description="English explanation or concise refusal stating the lecture does not cover the topic")
+
+
+class AskLectureResponse(BaseModel):
+    answer: str
+    is_ai_generated: bool = True
+    answered: bool
+

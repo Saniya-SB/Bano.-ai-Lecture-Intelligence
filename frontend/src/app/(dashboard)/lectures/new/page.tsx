@@ -146,8 +146,16 @@ function UploadPanel() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
-  } = useForm<LectureMetadataValues>({ resolver: zodResolver(lectureMetadataSchema) });
+  } = useForm<LectureMetadataValues>({
+    resolver: zodResolver(lectureMetadataSchema),
+    mode: "onChange",
+  });
+
+  const titleVal = watch("title", "");
+  const subjectVal = watch("subject", "");
+  const isValid = Boolean(selectedFile && titleVal.trim() && subjectVal.trim() && !errors.title && !errors.subject);
 
   const onSubmit = useCallback(
     async (values: LectureMetadataValues) => {
@@ -155,6 +163,7 @@ function UploadPanel() {
         setServerError("Please select an audio or video file to upload.");
         return;
       }
+      if (isUploading) return;
       setServerError(null);
       setIsUploading(true);
       setUploadPercent(0);
@@ -171,7 +180,7 @@ function UploadPanel() {
         setUploadPercent(0);
       }
     },
-    [selectedFile, router]
+    [selectedFile, isUploading, router]
   );
 
   return (
@@ -193,11 +202,27 @@ function UploadPanel() {
         disabled={isUploading}
       />
 
-      <Button type="submit" className="w-full gap-2" disabled={isUploading}>
+      {/* Selected file preview */}
+      {selectedFile && (
+        <div className="rounded-lg border border-border bg-bano-surface-sunken p-3 text-xs space-y-1">
+          <p className="font-semibold text-foreground flex items-center gap-1.5">
+            <span className="text-bano-accent">●</span> Selected file: {selectedFile.name}
+          </p>
+          <p className="text-bano-text-muted">
+            Size: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB &bull; Type: {selectedFile.type || "audio/video"}
+          </p>
+        </div>
+      )}
+
+      <Button
+        type="submit"
+        className="w-full gap-2 bg-bano-primary text-white hover:bg-bano-primary/90 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={isUploading || !isValid}
+      >
         {isUploading ? (
-          <><Loader2 className="h-4 w-4 animate-spin" />Uploading…</>
+          <><Loader2 className="h-4 w-4 animate-spin" />Audio taiyaar ho raha hai… ({uploadPercent}%)</>
         ) : (
-          <><Upload className="h-4 w-4" />Upload &amp; Process</>
+          <><Upload className="h-4 w-4" />Process lecture</>
         )}
       </Button>
     </form>
@@ -217,8 +242,16 @@ function RecordPanel() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
-  } = useForm<LectureMetadataValues>({ resolver: zodResolver(lectureMetadataSchema) });
+  } = useForm<LectureMetadataValues>({
+    resolver: zodResolver(lectureMetadataSchema),
+    mode: "onChange",
+  });
+
+  const titleVal = watch("title", "");
+  const subjectVal = watch("subject", "");
+  const isValid = Boolean(recordedBlob && titleVal.trim() && subjectVal.trim() && !errors.title && !errors.subject);
 
   const onSubmit = useCallback(
     async (values: LectureMetadataValues) => {
@@ -226,6 +259,7 @@ function RecordPanel() {
         setServerError("Please record audio before submitting.");
         return;
       }
+      if (isUploading) return;
       setServerError(null);
       setIsUploading(true);
       setUploadPercent(0);
@@ -242,7 +276,7 @@ function RecordPanel() {
         setUploadPercent(0);
       }
     },
-    [recordedBlob, router]
+    [recordedBlob, isUploading, router]
   );
 
   if (!FEATURES.browserRecording) {
@@ -267,6 +301,17 @@ function RecordPanel() {
       {isUploading && <UploadProgressBar percent={uploadPercent} />}
 
       {recordedBlob && (
+        <div className="rounded-lg border border-border bg-bano-surface-sunken p-3 text-xs space-y-1">
+          <p className="font-semibold text-foreground flex items-center gap-1.5">
+            <span className="text-bano-accent">●</span> Recorded audio clip ready
+          </p>
+          <p className="text-bano-text-muted">
+            Format: {recordedBlob.mimeType} &bull; Size: {(recordedBlob.blob.size / 1024).toFixed(1)} KB
+          </p>
+        </div>
+      )}
+
+      {recordedBlob && (
         <MetadataFields
           register={register}
           errors={errors}
@@ -275,11 +320,15 @@ function RecordPanel() {
       )}
 
       {recordedBlob && (
-        <Button type="submit" className="w-full gap-2" disabled={isUploading}>
+        <Button
+          type="submit"
+          className="w-full gap-2 bg-bano-primary text-white hover:bg-bano-primary/90 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isUploading || !isValid}
+        >
           {isUploading ? (
-            <><Loader2 className="h-4 w-4 animate-spin" />Uploading…</>
+            <><Loader2 className="h-4 w-4 animate-spin" />Audio taiyaar ho raha hai… ({uploadPercent}%)</>
           ) : (
-            <><ArrowRight className="h-4 w-4" />Submit Recording</>
+            <><Mic className="h-4 w-4" />Process lecture</>
           )}
         </Button>
       )}

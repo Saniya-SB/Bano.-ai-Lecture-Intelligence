@@ -15,7 +15,13 @@ from backend.app.schemas.lecture import (
     LectureUpdate,
     LectureResponse,
 )
-from backend.app.schemas.llm import LearningMaterialsPayload, TokenUsage, QuizPayload
+from backend.app.schemas.llm import (
+    LearningMaterialsPayload,
+    TokenUsage,
+    QuizPayload,
+    AskLectureRequest,
+    AskLectureResponse,
+)
 
 router = APIRouter(prefix="/lectures", tags=["Lectures"])
 
@@ -54,6 +60,7 @@ def create_lecture(
     """
     import uuid
 
+    # In test/dev environments or when specified by client, allow overriding is_test_data
     is_test = payload.is_test_data if _is_test_data_allowed() else False
 
     lecture_id = f"lec_{uuid.uuid4().hex[:12]}"
@@ -627,6 +634,165 @@ async def generate_lecture_quiz(
         db=db,
         num_questions=num_questions,
     )
+
+
+@router.post("/{lecture_id}/generate", response_model=LearningMaterialsPayload)
+async def generate_lecture_materials(
+    lecture_id: str,
+    force_refresh: bool = Query(False, description="Force regeneration bypassing cache"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Triggers or retries generation of AI study materials without re-transcribing audio.
+    Owner-only access strictly enforced (prevents IDOR: returns 404 if not owned).
+    """
+    from backend.app.services.llm.service import LearningMaterialService
+
+    lecture = db.scalar(
+        select(Lecture).where(
+            Lecture.id == lecture_id,
+            Lecture.user_id == current_user.id,
+        )
+    )
+    if not lecture:
+        raise AppException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message=f"Lecture with ID {lecture_id} was not found",
+            code="NOT_FOUND",
+        )
+
+    # Check transcript exists
+    transcript = db.execute(
+        select(Transcript).where(Transcript.lecture_id == lecture_id)
+    ).scalars().first()
+    if not transcript:
+        raise AppException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Cannot generate study materials: transcript is missing",
+            code="TRANSCRIPT_MISSING",
+        )
+
+    lecture.status = LectureStatus.GENERATING_NOTES.value
+    db.add(lecture)
+    db.commit()
+
+    service = LearningMaterialService()
+    try:
+        materials = await service.generate_learning_materials(
+            lecture_id=lecture_id,
+            user_id=current_user.id,
+            db=db,
+            force_refresh=force_refresh,
+        )
+        lecture.status = LectureStatus.COMPLETED.value
+        db.add(lecture)
+        db.commit()
+        return materials
+    except Exception as e:
+        lecture.status = LectureStatus.GENERATION_FAILED.value
+        db.add(lecture)
+        db.commit()
+        raise e
+
+
+@router.get("/{lecture_id}/export/notes")
+def export_lecture_notes(
+    lecture_id: str,
+    format: str = Query("pdf", description="Export format, only 'pdf' is supported"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Exports AI-generated English notes as a PDF.
+    Owner-only access strictly enforced (prevents IDOR: returns 404 if not owned).
+    Returns 400 Bad Request if format is not 'pdf' or if notes are not ready.
+    """
+    from backend.app.services.pdf_export import generate_notes_pdf
+
+    if format.lower() != "pdf":
+        raise AppException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Only 'pdf' format is supported for notes export",
+            code="UNSUPPORTED_EXPORT_FORMAT",
+        )
+
+    lecture = db.scalar(
+        select(Lecture).where(
+            Lecture.id == lecture_id,
+            Lecture.user_id == current_user.id,
+        )
+    )
+    if not lecture:
+        raise AppException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message=f"Lecture with ID {lecture_id} was not found",
+            code="NOT_FOUND",
+        )
+
+    # Fetch generated notes output
+    output_record = db.scalar(
+        select(GeneratedOutput)
+        .where(
+            GeneratedOutput.lecture_id == lecture_id,
+            GeneratedOutput.user_id == current_user.id,
+        )
+        .order_by(GeneratedOutput.created_at.desc())
+    )
+
+    if not output_record or not output_record.content:
+        raise AppException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Notes are not ready for export yet. Please wait for processing to complete.",
+            code="NOTES_NOT_READY",
+        )
+
+    notes = output_record.content.get("notes") or []
+    if not notes:
+        raise AppException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="No structured notes found for this lecture.",
+            code="NOTES_NOT_READY",
+        )
+
+    pdf_bytes = generate_notes_pdf(
+        lecture_title=lecture.title,
+        lecture_subject=lecture.subject,
+        notes=notes,
+    )
+
+    safe_title = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in lecture.title.lower())[:40] or "lecture"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_title}_notes.pdf"'
+        },
+    )
+
+
+@router.post("/{lecture_id}/ask", response_model=AskLectureResponse)
+async def ask_lecture(
+    lecture_id: str,
+    payload: AskLectureRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Ask this lecture a question (English, Hindi, or Hinglish).
+    Owner-only access strictly enforced (prevents IDOR: returns 404 if not owned).
+    Answers strictly grounded in top retrieved transcript segments without exposing timestamps.
+    """
+    from backend.app.services.ask_service import AskLectureService
+
+    service = AskLectureService()
+    return await service.ask_question(
+        lecture_id=lecture_id,
+        question=payload.question,
+        user_id=current_user.id,
+        db=db,
+    )
+
 
 
 

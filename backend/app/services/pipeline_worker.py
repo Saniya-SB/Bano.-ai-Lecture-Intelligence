@@ -8,12 +8,13 @@ from backend.app.core.exceptions import AppException
 from backend.app.core.logging import logger
 from backend.app.db.session import SessionLocal
 from backend.app.models.entities import TranscriptionJob, Lecture, Transcript, TranscriptSegment
-from backend.app.models.enums import JobStage, TranscriptVersion, SegmentType
+from backend.app.models.enums import JobStage, TranscriptVersion, SegmentType, LectureStatus
 from backend.app.services.storage import get_storage_adapter
 from backend.app.services.validators import validate_magic_bytes
 from backend.app.services.audio_prep import AudioPrepService
 from backend.app.services.gnani_provider import GnaniSTTProvider, NormalisedTranscript
 from backend.app.services.job_machine import JobStateMachine
+from backend.app.services.llm.service import LearningMaterialService
 
 
 async def process_lecture_pipeline(lecture_id: str, provider: Optional[GnaniSTTProvider] = None):
@@ -166,7 +167,27 @@ async def process_lecture_pipeline(lecture_id: str, provider: Optional[GnaniSTTP
 
         # STAGE 5: GENERATING_LEARNING_MATERIAL
         JobStateMachine.transition(db, job, JobStage.GENERATING_LEARNING_MATERIAL, progress_percent=90)
-        # Note generation will be orchestrated in Phase 4; currently mark complete
+        lecture.status = LectureStatus.GENERATING_NOTES.value
+        db.add(lecture)
+        db.commit()
+
+        try:
+            llm_service = LearningMaterialService()
+            await llm_service.generate_learning_materials(
+                lecture_id=lecture.id,
+                user_id=lecture.user_id,
+                db=db,
+                force_refresh=False,
+            )
+            lecture.status = LectureStatus.COMPLETED.value
+            db.add(lecture)
+            db.commit()
+            logger.info(f"AI study materials generated successfully for lecture {lecture_id}")
+        except Exception as llm_err:
+            logger.error(f"AI materials generation failed for lecture {lecture_id}, but transcript is preserved: {llm_err}")
+            lecture.status = LectureStatus.GENERATION_FAILED.value
+            db.add(lecture)
+            db.commit()
 
         # STAGE 6: COMPLETED
         JobStateMachine.transition(db, job, JobStage.COMPLETED, progress_percent=100)

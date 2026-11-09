@@ -15,48 +15,52 @@ import {
   DollarSign,
   TrendingUp,
   FlaskConical,
-  Info,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function BenchmarkPage() {
-  const { results, isLoading, isError, error, refetch } = useBenchmark();
+  const { results, details, isLoading, isError, error, refetch } = useBenchmark();
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
 
-  // Sample data indicator
   const isSampleScenario = env.USE_MOCK_API && env.MOCK_SCENARIO === "benchmark-sample";
 
-  // Identify best values among available reported metrics (strictly for UI accent, never calculated metrics)
   const bestWer = results.length > 0
     ? results.reduce((min, r) => (r.wer !== null && (min === null || r.wer < min) ? r.wer : min), null as number | null)
-    : null;
-
-  const bestCer = results.length > 0
-    ? results.reduce((min, r) => (r.cer !== null && (min === null || r.cer < min) ? r.cer : min), null as number | null)
     : null;
 
   const bestAccuracy = results.length > 0
     ? results.reduce((max, r) => (r.technicalTermAccuracy !== null && (max === null || r.technicalTermAccuracy > max) ? r.technicalTermAccuracy : max), null as number | null)
     : null;
 
-  const fastestTime = results.length > 0
-    ? results.reduce((min, r) => (r.processingTimeSec !== null && (min === null || r.processingTimeSec < min) ? r.processingTimeSec : min), null as number | null)
+  const fastestLatency = results.length > 0
+    ? results.reduce((min, r) => (r.meanLatency != null && (min === null || r.meanLatency < min) ? r.meanLatency : min), null as number | null)
     : null;
 
   const selectedModel = results.find((r) => r.modelId === selectedModelId) ?? results[0] ?? null;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+    <div className="space-y-6 max-w-5xl mx-auto pb-12">
       <PageHeader
         title="Model Benchmark"
-        description="Empirical evaluation of speech recognition models on technical Hinglish lectures."
+        description="Technical Hinglish lecture samples pe speech recognition models ka empirical evaluation."
       />
 
-      {/* Sample mode permanent banner if running under benchmark-sample scenario */}
+      {/* Mandatory Design Brief Methodology Note & Caveat */}
+      <div className="rounded-md border border-bano-border bg-bano-surface-sunken p-4 text-sm text-bano-text space-y-1">
+        <div className="flex items-center gap-2 font-semibold text-xs tracking-wider uppercase text-bano-text-subtle">
+          <AlertTriangle className="h-4 w-4 text-bano-accent shrink-0" />
+          <span>Methodology note &amp; limitation</span>
+        </div>
+        <p className="text-xs text-bano-text-muted leading-relaxed">
+          <strong>3 scripted clips, small test, not a general ranking.</strong> Results reflect measured performance on a specific 30-second STEM curriculum benchmark dataset (Recursion, Binary Search Trees, Database Primary Keys). Backend DB se real runs load hote hain — koi fabricated ya promotional numbers nahi hain.
+        </p>
+      </div>
+
       {isSampleScenario && (
         <div
           role="status"
-          className="rounded-lg border border-bano-accent/30 bg-bano-accent-soft p-4 text-sm text-bano-accent flex items-start gap-3"
+          className="rounded-md border border-bano-accent/30 bg-bano-accent-soft p-4 text-sm text-bano-accent flex items-start gap-3"
         >
           <FlaskConical className="h-5 w-5 shrink-0 mt-0.5" />
           <div className="space-y-1">
@@ -64,7 +68,7 @@ export default function BenchmarkPage() {
               Sample Data – Not Real Results
             </p>
             <p className="text-xs text-foreground/80">
-              This benchmark view is rendering mock evaluation records for development and interface verification. Real benchmarks require executed model evaluation runs.
+              This benchmark view is rendering mock evaluation records for development and interface verification.
             </p>
           </div>
         </div>
@@ -99,77 +103,70 @@ export default function BenchmarkPage() {
       {/* Populated Benchmark View */}
       {!isLoading && !isError && results.length > 0 && (
         <div className="space-y-8" data-testid="benchmark-results">
-          {/* Key Empirical Summary Highlights */}
+          {/* Key Summary Highlights */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="rounded-lg border border-border bg-card p-4 space-y-1">
+            <div className="rounded-md border border-border bg-card p-4 space-y-1">
               <div className="flex items-center justify-between text-bano-text-muted text-xs font-medium">
-                <span>Lowest Word Error Rate</span>
+                <span>Lowest WER (Error)</span>
                 <Award className="h-4 w-4 text-bano-accent" />
               </div>
-              <div className="text-2xl font-heading font-bold text-foreground">
+              <div className="text-2xl font-mono font-bold text-foreground">
                 {bestWer !== null ? `${bestWer}%` : "Not reported"}
               </div>
               <p className="text-xs text-bano-text-muted">
-                Word Error Rate (WER) across Hinglish corpus
+                Word Error Rate across test clips
               </p>
             </div>
 
-            <div className="rounded-lg border border-border bg-card p-4 space-y-1">
+            <div className="rounded-md border border-border bg-card p-4 space-y-1">
               <div className="flex items-center justify-between text-bano-text-muted text-xs font-medium">
-                <span>Highest Tech Accuracy</span>
-                <TrendingUp className="h-4 w-4 text-emerald-600" />
+                <span>Highest Term Accuracy</span>
+                <TrendingUp className="h-4 w-4 text-bano-success" />
               </div>
-              <div className="text-2xl font-heading font-bold text-foreground">
+              <div className="text-2xl font-mono font-bold text-foreground">
                 {bestAccuracy !== null ? `${bestAccuracy}%` : "Not reported"}
               </div>
               <p className="text-xs text-bano-text-muted">
-                Domain lexicon & terminology precision
+                Technical jargon preservation
               </p>
             </div>
 
-            <div className="rounded-lg border border-border bg-card p-4 space-y-1">
+            <div className="rounded-md border border-border bg-card p-4 space-y-1">
               <div className="flex items-center justify-between text-bano-text-muted text-xs font-medium">
-                <span>Fastest Processing</span>
-                <Zap className="h-4 w-4 text-amber-600" />
+                <span>Fastest Latency</span>
+                <Zap className="h-4 w-4 text-bano-warning" />
               </div>
-              <div className="text-2xl font-heading font-bold text-foreground">
-                {fastestTime !== null ? `${fastestTime}s` : "Not reported"}
+              <div className="text-2xl font-mono font-bold text-foreground">
+                {fastestLatency !== null ? `${fastestLatency}s` : "Not reported"}
               </div>
               <p className="text-xs text-bano-text-muted">
-                Average transcription latency per lecture hour
+                Average audio processing time
               </p>
             </div>
 
-            <div className="rounded-lg border border-border bg-card p-4 space-y-1">
+            <div className="rounded-md border border-border bg-card p-4 space-y-1">
               <div className="flex items-center justify-between text-bano-text-muted text-xs font-medium">
                 <span>Evaluated Models</span>
-                <BarChart3 className="h-4 w-4 text-blue-600" />
+                <BarChart3 className="h-4 w-4 text-bano-info" />
               </div>
-              <div className="text-2xl font-heading font-bold text-foreground">
+              <div className="text-2xl font-mono font-bold text-foreground">
                 {results.length}
               </div>
               <p className="text-xs text-bano-text-muted">
-                Candidate architectures in current benchmark
+                Architectures in database
               </p>
             </div>
           </div>
 
           {/* Model Comparison Table */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-heading font-semibold text-foreground">
-                  Evaluation Comparison Matrix
-                </h2>
-                <p className="text-sm text-bano-text-muted">
-                  Empirical benchmarks measured on bilingual STEM lecture audio.
-                </p>
-              </div>
-            </div>
+            <h2 className="text-base font-heading font-semibold text-foreground">
+              Evaluation Comparison Matrix
+            </h2>
 
-            <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
+            <div className="overflow-x-auto rounded-md border border-border bg-card">
               <table className="w-full text-left text-sm" role="table">
-                <thead className="bg-bano-surface-sunken text-xs font-medium text-bano-text-muted uppercase border-b border-border">
+                <thead className="bg-bano-surface-sunken text-xs font-mono uppercase text-bano-text-muted border-b border-border">
                   <tr>
                     <th scope="col" className="px-4 py-3 sticky left-0 bg-bano-surface-sunken z-10">
                       Model Architecture
@@ -181,13 +178,13 @@ export default function BenchmarkPage() {
                       CER (%)
                     </th>
                     <th scope="col" className="px-4 py-3 text-right">
-                      Tech Term Accuracy
+                      Term Accuracy
                     </th>
                     <th scope="col" className="px-4 py-3 text-right">
-                      Processing Time
+                      Latency
                     </th>
                     <th scope="col" className="px-4 py-3 text-right">
-                      Est. Cost / hr
+                      Cost / hr
                     </th>
                     <th scope="col" className="px-4 py-3 text-center">
                       Action
@@ -203,15 +200,15 @@ export default function BenchmarkPage() {
                     return (
                       <tr
                         key={model.modelId}
-                        className={`hover:bg-muted/50 transition-colors ${
-                          isSelected ? "bg-bano-accent-soft/40" : ""
+                        className={`hover:bg-bano-surface-sunken/40 transition-colors ${
+                          isSelected ? "bg-bano-accent-soft/30" : ""
                         }`}
                       >
                         <td className="px-4 py-3.5 font-medium text-foreground sticky left-0 bg-card z-10 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <span>{model.modelName}</span>
                             {model.isEstimated && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-100 text-amber-800 border border-amber-300">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono bg-bano-warning-soft text-bano-warning border border-bano-warning/30">
                                 Estimated
                               </span>
                             )}
@@ -246,7 +243,7 @@ export default function BenchmarkPage() {
                             <span className="font-mono inline-flex items-center gap-1.5 justify-end">
                               {model.technicalTermAccuracy}%
                               {isBestAccuracy && (
-                                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-sans font-medium">
+                                <span className="text-[10px] bg-bano-success-soft text-bano-success px-1.5 py-0.5 rounded font-sans font-medium">
                                   Top
                                 </span>
                               )}
@@ -257,16 +254,16 @@ export default function BenchmarkPage() {
                         </td>
 
                         <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                          {model.processingTimeSec !== null ? (
-                            <span className="font-mono">{model.processingTimeSec}s</span>
+                          {model.meanLatency != null ? (
+                            <span className="font-mono">{model.meanLatency}s</span>
                           ) : (
                             <span className="text-bano-text-muted italic text-xs">Not reported</span>
                           )}
                         </td>
 
                         <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                          {model.estimatedCostUsd !== null ? (
-                            <span className="font-mono">${model.estimatedCostUsd.toFixed(2)}</span>
+                          {model.totalCost != null ? (
+                            <span className="font-mono">${model.totalCost.toFixed(2)}</span>
                           ) : (
                             <span className="text-bano-text-muted italic text-xs">Not reported</span>
                           )}
@@ -276,7 +273,7 @@ export default function BenchmarkPage() {
                           <Button
                             variant={isSelected ? "secondary" : "outline"}
                             size="sm"
-                            className="text-xs h-7"
+                            className="text-xs h-7 border-border"
                             onClick={() => setSelectedModelId(model.modelId)}
                           >
                             {isSelected ? "Inspecting" : "Inspect"}
@@ -290,9 +287,9 @@ export default function BenchmarkPage() {
             </div>
           </div>
 
-          {/* Model Detail Breakdown Card */}
+          {/* Model Detail Breakdown */}
           {selectedModel && (
-            <div className="rounded-lg border border-border bg-card p-6 space-y-4 shadow-sm">
+            <div className="rounded-md border border-border bg-card p-6 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-4">
                 <div>
                   <h3 className="text-base font-heading font-semibold text-foreground">
@@ -303,7 +300,7 @@ export default function BenchmarkPage() {
                   </p>
                 </div>
                 {selectedModel.isEstimated && (
-                  <span className="self-start sm:self-auto px-2.5 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300">
+                  <span className="self-start sm:self-auto px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300">
                     Preliminary / Estimated Metrics
                   </span>
                 )}
@@ -315,7 +312,7 @@ export default function BenchmarkPage() {
                     <Award className="h-3.5 w-3.5 text-bano-accent" />
                     Accuracy Profile
                   </div>
-                  <div className="text-sm space-y-1 pt-1">
+                  <div className="text-xs space-y-1 pt-1">
                     <div className="flex justify-between">
                       <span className="text-bano-text-muted">Word Error Rate:</span>
                       <span className="font-mono font-medium">{selectedModel.wer !== null ? `${selectedModel.wer}%` : "Not reported"}</span>
@@ -333,18 +330,20 @@ export default function BenchmarkPage() {
 
                 <div className="rounded-md bg-bano-surface-sunken p-4 space-y-1">
                   <div className="text-xs text-bano-text-muted font-medium flex items-center gap-1.5">
-                    <Zap className="h-3.5 w-3.5 text-amber-600" />
-                    Throughput & Latency
+                    <Zap className="h-3.5 w-3.5 text-bano-warning" />
+                    Processing Latency
                   </div>
-                  <div className="text-sm space-y-1 pt-1">
+                  <div className="text-xs space-y-1 pt-1">
                     <div className="flex justify-between">
-                      <span className="text-bano-text-muted">Processing Time:</span>
-                      <span className="font-mono font-medium">{selectedModel.processingTimeSec !== null ? `${selectedModel.processingTimeSec}s` : "Not reported"}</span>
+                      <span className="text-bano-text-muted">Mean Latency:</span>
+                      <span className="font-mono font-medium">{selectedModel.meanLatency != null ? `${selectedModel.meanLatency}s` : "Not reported"}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-bano-text-muted">Real-time Factor:</span>
+                      <span className="text-bano-text-muted">Min / Max Latency:</span>
                       <span className="font-mono font-medium">
-                        {selectedModel.processingTimeSec !== null ? `~${(selectedModel.processingTimeSec / 3600).toFixed(3)}x` : "Not reported"}
+                        {selectedModel.minLatency != null && selectedModel.maxLatency != null
+                          ? `${selectedModel.minLatency}s – ${selectedModel.maxLatency}s`
+                          : "Not reported"}
                       </span>
                     </div>
                   </div>
@@ -352,24 +351,73 @@ export default function BenchmarkPage() {
 
                 <div className="rounded-md bg-bano-surface-sunken p-4 space-y-1">
                   <div className="text-xs text-bano-text-muted font-medium flex items-center gap-1.5">
-                    <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
-                    Cost Metrics
+                    <DollarSign className="h-3.5 w-3.5 text-bano-success" />
+                    Cost &amp; Hosting
                   </div>
-                  <div className="text-sm space-y-1 pt-1">
+                  <div className="text-xs space-y-1 pt-1">
                     <div className="flex justify-between">
-                      <span className="text-bano-text-muted">Cost per Audio Hour:</span>
-                      <span className="font-mono font-medium">{selectedModel.estimatedCostUsd !== null ? `$${selectedModel.estimatedCostUsd.toFixed(2)}` : "Not reported"}</span>
+                      <span className="text-bano-text-muted">Run Cost:</span>
+                      <span className="font-mono font-medium">{selectedModel.totalCost != null ? `$${selectedModel.totalCost.toFixed(2)}` : "$0.00 (Self-hosted)"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-bano-text-muted">Source:</span>
+                      <span className="font-mono font-medium capitalize">{selectedModel.source || "Production STT"}</span>
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
+          )}
 
-              {selectedModel.notes && (
-                <div className="text-xs text-bano-text-muted bg-muted/30 p-3 rounded border border-border flex items-start gap-2">
-                  <Info className="h-4 w-4 shrink-0 text-bano-accent mt-0.5" />
-                  <span>{selectedModel.notes}</span>
-                </div>
-              )}
+          {/* Granular Per-Clip Reference vs Hypothesis Section */}
+          {details.length > 0 && (
+            <div className="space-y-4 pt-4 border-t border-border">
+              <div>
+                <h3 className="text-base font-heading font-semibold text-foreground">
+                  Per-Clip Breakdown: Reference vs Hypothesis
+                </h3>
+                <p className="text-xs text-bano-text-muted">
+                  Ground truth reference transcript compared with model transcription output.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {details.map((clip) => (
+                  <div key={clip.id} className="border border-border rounded-md bg-card p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
+                      <span className="font-mono text-xs font-semibold text-bano-text">
+                        {clip.clipId}
+                      </span>
+                      <div className="flex items-center gap-3 text-xs font-mono">
+                        <span>WER: <strong>{clip.wer}%</strong></span>
+                        <span>CER: <strong>{clip.cer}%</strong></span>
+                        <span>Term Acc: <strong>{clip.technicalTermAccuracy}%</strong></span>
+                        <span>Time: <strong>{clip.processingTimeSec}s</strong></span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                      <div className="bg-bano-surface-sunken p-3 rounded space-y-1">
+                        <span className="text-[10px] font-mono text-bano-text-subtle uppercase">
+                          Reference Ground Truth
+                        </span>
+                        <p className="font-devanagari text-sm leading-relaxed text-foreground">
+                          {clip.referenceTranscript || "Ground truth transcript"}
+                        </p>
+                      </div>
+
+                      <div className="bg-bano-surface-sunken p-3 rounded space-y-1">
+                        <span className="text-[10px] font-mono text-bano-text-subtle uppercase">
+                          Model Output (Hypothesis)
+                        </span>
+                        <p className="font-devanagari text-sm leading-relaxed text-foreground">
+                          {clip.hypothesisTranscript}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

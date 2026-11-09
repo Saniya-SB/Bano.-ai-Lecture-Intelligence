@@ -3,12 +3,9 @@
 import React, { useState } from "react";
 import { LearningMaterials } from "@/types/domain/materials";
 import { Card } from "@/components/ui/card";
-import { formatTimestamp } from "@/lib/formatters";
 import {
   FileText,
-  Clock,
   AlertCircle,
-  Sparkles,
   BookMarked,
   BookOpen,
 } from "lucide-react";
@@ -18,7 +15,6 @@ interface SummaryTabProps {
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
-  onTimestampClick?: (seconds: number) => void;
 }
 
 export function SummaryTab({
@@ -26,7 +22,6 @@ export function SummaryTab({
   isLoading,
   isError,
   onRetry,
-  onTimestampClick,
 }: SummaryTabProps) {
   const [summaryMode, setSummaryMode] = useState<"short" | "detailed">("short");
 
@@ -76,16 +71,25 @@ export function SummaryTab({
   return (
     <div className="space-y-6">
       {/* Disclaimer */}
-      <div className="p-3 bg-bano-surface-sunken rounded-lg border border-border text-xs text-bano-text-muted flex items-start gap-2">
-        <FileText className="h-4 w-4 text-bano-accent shrink-0 mt-0.5" />
-        <span>{materials.disclaimer}</span>
+      <div className="p-3 bg-bano-surface-sunken rounded-md border border-border text-xs text-bano-text flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2">
+          <span className="font-semibold px-1.5 py-0.5 rounded bg-bano-accent/20 text-bano-text text-[11px] shrink-0">
+            AI ne banaya, teacher ka exact statement nahi.
+          </span>
+          <span className="text-bano-text-muted mt-0.5">{materials.disclaimer}</span>
+        </div>
+        {materials.modelName && (
+          <span className="text-[10px] font-mono text-bano-text-muted shrink-0 mt-0.5">
+            Model: {materials.modelName}
+          </span>
+        )}
       </div>
 
       {/* Summary Card with Short / Detailed segmented selector */}
       <Card className="p-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-3">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-bano-accent" />
+            <BookOpen className="h-4 w-4 text-bano-secondary-ink" />
             <h3 className="font-heading font-semibold text-base">Lecture Summary</h3>
           </div>
 
@@ -146,34 +150,14 @@ export function SummaryTab({
             {materials.keyConcepts.map((item, idx) => (
               <div
                 key={idx}
-                className="p-4 rounded-lg bg-bano-surface-sunken border border-border space-y-2 flex flex-col justify-between"
+                className="p-4 rounded-lg bg-bano-surface-sunken border border-border space-y-1"
               >
-                <div>
-                  <h4 className="font-heading font-semibold text-sm text-foreground">
-                    {item.concept}
-                  </h4>
-                  <p className="text-xs text-bano-text-muted leading-relaxed mt-1">
-                    {item.explanation}
-                  </p>
-                </div>
-
-                {item.referencedTimeRanges && item.referencedTimeRanges.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/60">
-                    <span className="text-[10px] text-bano-text-subtle flex items-center gap-1">
-                      <Clock className="h-2.5 w-2.5" /> At:
-                    </span>
-                    {item.referencedTimeRanges.map((range, rIdx) => (
-                      <button
-                        key={rIdx}
-                        type="button"
-                        onClick={() => onTimestampClick?.(range.start)}
-                        className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-card text-bano-accent hover:underline border border-border"
-                      >
-                        {formatTimestamp(range.start)}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <h4 className="font-heading font-semibold text-sm text-foreground">
+                  {item.concept}
+                </h4>
+                <p className="text-xs text-bano-text-muted leading-relaxed">
+                  {item.explanation}
+                </p>
               </div>
             ))}
           </div>
@@ -192,30 +176,13 @@ export function SummaryTab({
         ) : (
           <div className="divide-y divide-border">
             {materials.glossary.map((entry, idx) => (
-              <div key={idx} className="py-3 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
-                <div className="space-y-0.5">
-                  <span className="font-mono font-semibold text-xs text-bano-accent">
-                    {entry.term}
-                  </span>
-                  <p className="text-xs text-foreground/90">
-                    {entry.definition}
-                  </p>
-                </div>
-
-                {entry.referencedTimeRanges && entry.referencedTimeRanges.length > 0 && (
-                  <div className="flex items-center gap-1 self-start sm:self-auto shrink-0">
-                    {entry.referencedTimeRanges.map((range, rIdx) => (
-                      <button
-                        key={rIdx}
-                        type="button"
-                        onClick={() => onTimestampClick?.(range.start)}
-                        className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-bano-surface-sunken text-bano-text-subtle hover:text-bano-accent hover:underline border border-border"
-                      >
-                        {formatTimestamp(range.start)}
-                      </button>
-                    ))}
-                  </div>
-                )}
+              <div key={idx} className="py-3 first:pt-0 last:pb-0">
+                <span className="font-mono font-semibold text-xs text-bano-accent block mb-0.5">
+                  {entry.term}
+                </span>
+                <p className="text-xs text-foreground/90">
+                  {entry.definition}
+                </p>
               </div>
             ))}
           </div>

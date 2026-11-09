@@ -4,26 +4,21 @@ import React, { useState } from "react";
 import { Quiz } from "@/types/domain/materials";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { formatTimestamp } from "@/lib/formatters";
 import {
   Award,
   AlertCircle,
   FileText,
-  Clock,
-  Sparkles,
   RotateCcw,
   CheckCircle2,
   HelpCircle,
-} from "lucide-react";
-
-interface QuizTabProps {
+  Loader2,
+} from "lucide-react";interface QuizTabProps {
   quiz: Quiz | null;
   isLoading: boolean;
   isGenerating: boolean;
   isError: boolean;
   onGenerateQuiz: (numQuestions: number) => Promise<Quiz>;
   onRetry: () => void;
-  onTimestampClick?: (seconds: number) => void;
 }
 
 export function QuizTab({
@@ -33,13 +28,19 @@ export function QuizTab({
   isError,
   onGenerateQuiz,
   onRetry,
-  onTimestampClick,
 }: QuizTabProps) {
   const [selectedNumQuestions, setSelectedNumQuestions] = useState<number>(5);
   // Track selected option per question ID: { [questionId]: optionIndex }
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number>>({});
   // Track revealed explanations: { [questionId]: boolean }
   const [revealedExplanations, setRevealedExplanations] = useState<Record<string, boolean>>({});
+
+  const answeredCount = Object.keys(selectedAnswers).length;
+  const correctCount = quiz
+    ? quiz.questions.reduce((acc, q) => {
+        return selectedAnswers[q.id] === q.correctOptionIndex ? acc + 1 : acc;
+      }, 0)
+    : 0;
 
   const handleOptionSelect = (questionId: string, optionIndex: number) => {
     setSelectedAnswers((prev) => ({
@@ -68,15 +69,15 @@ export function QuizTab({
 
   if (isLoading || isGenerating) {
     return (
-      <Card className="p-12 text-center space-y-4 animate-pulse">
-        <Sparkles className="h-10 w-10 mx-auto text-bano-accent animate-spin" />
+      <Card className="p-12 text-center space-y-4">
+        <Loader2 className="h-8 w-8 mx-auto text-bano-secondary-ink animate-spin" />
         <h3 className="font-heading font-semibold text-base">
           {isGenerating
-            ? `Generating ${selectedNumQuestions} Quiz Questions...`
-            : "Loading Quiz..."}
+            ? `${selectedNumQuestions} questions taiyaar ho rahe hain...`
+            : "Quiz load ho raha hai..."}
         </h3>
         <p className="text-xs text-bano-text-muted max-w-sm mx-auto">
-          AI is grounding self-assessment multiple-choice questions strictly from the core concept and example segments of this lecture.
+          Lecture ke core concepts se factual multiple-choice questions ban rahe hain.
         </p>
       </Card>
     );
@@ -111,10 +112,10 @@ export function QuizTab({
 
         <div className="space-y-2">
           <h3 className="font-heading font-bold text-xl text-foreground">
-            Generate AI Practice Quiz
+            Practice Quiz
           </h3>
           <p className="text-xs sm:text-sm text-bano-text-muted leading-relaxed">
-            Test your understanding with targeted multiple-choice questions derived directly from the concepts taught in this lecture.
+            Lecture ke concepts pe based multiple-choice questions se revision karo.
           </p>
         </div>
 
@@ -148,9 +149,9 @@ export function QuizTab({
           type="button"
           onClick={handleStartGeneration}
           disabled={isGenerating}
-          className="w-full sm:w-auto px-8 bg-bano-accent hover:bg-bano-accent-hover text-white"
+          className="w-full sm:w-auto px-8 bg-bano-primary hover:bg-bano-primary/90 text-white font-medium"
         >
-          <Sparkles className="h-4 w-4 mr-2" /> Start Quiz
+          Quiz shuru karo
         </Button>
       </Card>
     );
@@ -158,27 +159,59 @@ export function QuizTab({
 
   return (
     <div className="space-y-6">
-      {/* Quiz Header & AI Disclaimer */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-card rounded-lg border border-border">
-        <div>
-          <h3 className="font-heading font-semibold text-base text-foreground">
-            Knowledge Check ({quiz.questions.length} Questions)
-          </h3>
-          <p className="text-xs text-bano-text-muted mt-0.5">
+      {/* Quiz Header, Score Summary & AI Disclaimer */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-card rounded-md border border-border">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <h3 className="font-heading font-semibold text-base text-foreground">
+              Knowledge Check ({quiz.questions.length} Questions)
+            </h3>
+            <span className="font-semibold px-1.5 py-0.5 rounded bg-bano-accent/20 text-bano-text text-[11px]">
+              AI ne banaya, teacher ka exact statement nahi.
+            </span>
+          </div>
+          <p className="text-xs text-bano-text-muted">
             {quiz.disclaimer}
           </p>
+          {answeredCount > 0 && (
+            <div className="flex items-center gap-2 pt-1 font-mono text-xs">
+              <span className="font-semibold text-foreground">
+                Score: {correctCount}/{answeredCount}
+              </span>
+              <span className="text-bano-text-muted">
+                ({Math.round((correctCount / quiz.questions.length) * 100)}% of total)
+              </span>
+              {answeredCount === quiz.questions.length && (
+                <span className="text-bano-success font-medium">✓ Completed!</span>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Re-generate button */}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setSelectedAnswers({})}
-          className="text-xs self-start sm:self-auto shrink-0"
-        >
-          <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset Answers
-        </Button>
+        {/* Action buttons */}
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSelectedAnswers({});
+              setRevealedExplanations({});
+            }}
+            className="text-xs"
+          >
+            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset Answers
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleStartGeneration}
+            disabled={isGenerating}
+            className="text-xs bg-bano-primary text-white hover:bg-bano-primary/90"
+          >
+            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Re-generate Quiz
+          </Button>
+        </div>
       </div>
 
       {/* Questions List */}
@@ -190,64 +223,72 @@ export function QuizTab({
 
           return (
             <Card key={q.id} className="p-6 space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <span className="text-xs font-bold text-bano-accent uppercase tracking-wider">
-                    Question {qIdx + 1}
-                  </span>
-                  <h4 className="font-heading font-semibold text-base text-foreground leading-snug">
-                    {q.question}
-                  </h4>
-                </div>
-
-                {q.referencedTimeRanges && q.referencedTimeRanges.length > 0 && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    {q.referencedTimeRanges.map((range, rIdx) => (
-                      <button
-                        key={rIdx}
-                        type="button"
-                        onClick={() => onTimestampClick?.(range.start)}
-                        className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-bano-surface-sunken text-bano-text-subtle hover:text-bano-accent hover:underline border border-border flex items-center gap-1"
-                        title="Jump to source timestamp"
-                      >
-                        <Clock className="h-2.5 w-2.5" />
-                        {formatTimestamp(range.start)}
-                      </button>
-                    ))}
-                  </div>
-                )}
+              <div className="space-y-1">
+                <span className="text-xs font-bold text-bano-accent uppercase tracking-wider">
+                  Question {qIdx + 1}
+                </span>
+                <h4 className="font-heading font-semibold text-base text-foreground leading-snug">
+                  {q.question}
+                </h4>
               </div>
 
               {/* Options */}
               <div className="space-y-2 pt-1">
                 {q.options.map((option, optIdx) => {
                   const isSelected = selectedOption === optIdx;
+                  const isCorrect = optIdx === q.correctOptionIndex;
+
+                  let optionStyle = "bg-card border-border text-foreground hover:bg-bano-surface-sunken";
+                  if (hasSelected) {
+                    if (isCorrect) {
+                      optionStyle = "bg-bano-success-soft/30 border-bano-success text-foreground font-medium";
+                    } else if (isSelected) {
+                      optionStyle = "bg-bano-danger-soft/30 border-bano-danger text-foreground font-medium";
+                    } else {
+                      optionStyle = "bg-card border-border text-bano-text-muted opacity-70";
+                    }
+                  } else if (isSelected) {
+                    optionStyle = "bg-bano-accent-soft/30 border-bano-accent text-foreground font-medium";
+                  }
+
+                  let badgeStyle = "bg-bano-surface-sunken text-bano-text-muted";
+                  if (hasSelected) {
+                    if (isCorrect) {
+                      badgeStyle = "bg-bano-success text-white";
+                    } else if (isSelected) {
+                      badgeStyle = "bg-bano-danger text-white";
+                    }
+                  } else if (isSelected) {
+                    badgeStyle = "bg-bano-accent text-white";
+                  }
 
                   return (
                     <button
                       key={optIdx}
                       type="button"
                       onClick={() => handleOptionSelect(q.id, optIdx)}
-                      className={`w-full text-left p-3.5 rounded-lg border text-sm transition-all flex items-center justify-between ${
-                        isSelected
-                          ? "bg-bano-accent-soft/30 border-bano-accent text-foreground font-medium"
-                          : "bg-card border-border text-foreground hover:bg-bano-surface-sunken"
-                      }`}
+                      className={`w-full text-left p-3.5 rounded-lg border text-sm transition-all flex items-center justify-between ${optionStyle}`}
                     >
                       <div className="flex items-center gap-3">
                         <span
-                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${
-                            isSelected
-                              ? "bg-bano-accent text-white"
-                              : "bg-bano-surface-sunken text-bano-text-muted"
-                          }`}
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${badgeStyle}`}
                         >
                           {String.fromCharCode(65 + optIdx)}
                         </span>
                         <span>{option}</span>
                       </div>
 
-                      {isSelected && (
+                      {hasSelected && isCorrect && (
+                        <span className="text-xs font-semibold text-bano-success flex items-center gap-1">
+                          <CheckCircle2 className="h-4 w-4" /> Correct
+                        </span>
+                      )}
+                      {hasSelected && isSelected && !isCorrect && (
+                        <span className="text-xs font-semibold text-bano-danger">
+                          Incorrect
+                        </span>
+                      )}
+                      {!hasSelected && isSelected && (
                         <CheckCircle2 className="h-4 w-4 text-bano-accent shrink-0" />
                       )}
                     </button>

@@ -88,7 +88,7 @@ export function MobileNavSheet({ open, onOpenChange }: MobileNavSheetProps) {
         </div>
 
         <div className="text-xs text-bano-text-subtle font-mono pt-4 border-t border-border">
-          Bano.ai v1.0 &bull; Hinglish Intelligence
+          Bano.ai &bull; Hinglish Intelligence
         </div>
       </SheetContent>
     </Sheet>

@@ -31,6 +31,7 @@ export type LectureStatus =
   | "transcribing"
   | "generating_notes"
   | "completed"
+  | "generation_failed"
   | "failed"
   | "unknown";
 

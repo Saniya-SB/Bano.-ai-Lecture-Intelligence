@@ -122,6 +122,14 @@ dist
 .dynamodb/
 
 # Firebase cache directory
+# Secrets & Credentials
+*.key
+*.pem
+*firebase*credentials*.json
+*firebase*service*account*.json
+*service-account*.json
+.env.local
+.env.*.local
 .firebase/
 
 # TernJS port file

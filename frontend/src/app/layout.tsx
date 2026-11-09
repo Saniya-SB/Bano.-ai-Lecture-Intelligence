@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import {
-  Manrope,
+  Source_Serif_4,
   Inter,
   JetBrains_Mono,
   Noto_Sans_Devanagari,
@@ -11,10 +11,10 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BRAND } from "@/config/brand";
 
-const manrope = Manrope({
+const sourceSerif = Source_Serif_4({
   subsets: ["latin"],
-  variable: "--font-manrope",
-  weight: ["600", "700", "800"],
+  variable: "--font-serif",
+  weight: ["400", "600", "700"],
   display: "swap",
 });
 
@@ -58,7 +58,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${manrope.variable} ${inter.variable} ${jetbrainsMono.variable} ${notoSansDevanagari.variable}`}
+      className={`${sourceSerif.variable} ${inter.variable} ${jetbrainsMono.variable} ${notoSansDevanagari.variable}`}
     >
       <body className="min-h-screen bg-bano-bg text-bano-text antialiased">
         <QueryProvider>

@@ -25,4 +25,16 @@ export const materialsService = {
       return null;
     }
   },
+
+  /**
+   * Triggers or retries generation of AI study materials.
+   * POST /api/v1/lectures/{id}/generate
+   */
+  async generateMaterials(lectureId: string, forceRefresh = false): Promise<LearningMaterials> {
+    const dto = await apiClient<LearningMaterialsDto>(
+      `/lectures/${lectureId}/generate?force_refresh=${forceRefresh}`,
+      { method: "POST" }
+    );
+    return mapLearningMaterialsDtoToDomain(dto);
+  },
 };

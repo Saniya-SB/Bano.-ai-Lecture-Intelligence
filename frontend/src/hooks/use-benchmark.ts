@@ -2,10 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { benchmarkService } from "@/services/benchmark-service";
-import { BenchmarkModelResult } from "@/types/domain/benchmark";
+import { BenchmarkModelResult, BenchmarkClipDetail } from "@/types/domain/benchmark";
 
 export const benchmarkQueryKeys = {
   all: ["benchmark", "results"] as const,
+  details: ["benchmark", "details"] as const,
 };
 
 export function useBenchmark() {
@@ -16,11 +17,22 @@ export function useBenchmark() {
     retry: 1,
   });
 
+  const detailsQuery = useQuery<BenchmarkClipDetail[], Error>({
+    queryKey: benchmarkQueryKeys.details,
+    queryFn: () => benchmarkService.getDetails(),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
   return {
     results: query.data ?? [],
-    isLoading: query.isLoading,
+    details: detailsQuery.data ?? [],
+    isLoading: query.isLoading || detailsQuery.isLoading,
     isError: query.isError,
     error: query.error,
-    refetch: query.refetch,
+    refetch: () => {
+      query.refetch();
+      detailsQuery.refetch();
+    },
   };
 }

@@ -210,9 +210,16 @@ Retrieves dual Devanagari (Hindi) and Roman (Hinglish) transcripts with segment 
 
 ### 3.5 Learning Materials (AI Outputs)
 
+#### `POST /api/v1/lectures/{lecture_id}/generate`
+Triggers or retries AI study material generation without re-transcribing the lecture audio.
+- **Auth**: Required (Owner only).
+- **Query Params**: `force_refresh=true|false` (default: `false`).
+- **Response `200 OK`**: Returns the `LearningMaterialsPayload` (identical to `GET /materials`).
+- **Error Codes**: `400 TRANSCRIPT_MISSING` if lecture transcript has not been created yet.
+
 #### `GET /api/v1/lectures/{lecture_id}/materials`
 *(Also available at `GET /api/v1/lectures/{lecture_id}/outputs`)*
-Returns synthesized AI study materials for the lecture.
+Returns synthesized AI study materials for the lecture according to `docs/API_PROPOSAL.md`.
 - **Auth**: Required (Owner only).
 - **Response `200 OK`**:
 ```json
@@ -279,6 +286,18 @@ Returns synthesized AI study materials for the lecture.
 
 ### 3.6 Lecture Export
 
+#### `GET /api/v1/lectures/{lecture_id}/export/notes?format=pdf`
+Downloads an AI-generated English notes PDF containing strictly the lecture title, subject, notes (headings and bullet points), and the footer `"AI-generated notes from the lecture transcript."`. Contains no transcript, quiz, or source timestamps.
+- **Auth**: Required (Owner only; `404 Not Found` if not found or unauthorized for IDOR protection).
+- **Query Parameter**: `format=pdf` (strictly required; other formats return `400 Bad Request`).
+- **Response `200 OK`**:
+  - `Content-Type: application/pdf`
+  - `Content-Disposition: attachment; filename="<slugified_title>_notes.pdf"`
+  - Body: Binary PDF byte stream generated via `fpdf2`.
+- **Error Responses**:
+  - `400 Bad Request`: `{"code": "NOTES_NOT_READY", "detail": "Notes are not ready for export yet."}`
+  - `404 Not Found`: If lecture does not exist or does not belong to the user.
+
 #### `GET /api/v1/lectures/{lecture_id}/export?format=md`
 Downloads a formatted Markdown file containing complete dual transcripts, notes, executive and detailed summaries, glossary, practice questions, and teacher announcements.
 - **Auth**: Required (Owner only; `404` if not found or unauthorized).
@@ -290,6 +309,42 @@ Downloads a formatted Markdown file containing complete dual transcripts, notes,
 
 ---
 
+### 3.7 Ask this Lecture
+
+#### `POST /api/v1/lectures/{lecture_id}/ask`
+Answers student questions (in Hindi, Hinglish, or English) about the lecture. Answers are always returned in English, strictly grounded in the top retrieved transcript segments using lexical scoring (keyword overlap + technical lexicon). Never exposes source timestamps or segment references in the response payload.
+- **Auth**: Required (Owner only; `404 Not Found` if not found or unauthorized).
+- **Rate Limit**: Enforced per user (sliding window, default 10 requests/minute).
+- **Request Body**:
+```json
+{
+  "question": "Recursion mein base condition na ho toh kya hoga?"
+}
+```
+- **Response `200 OK`**:
+```json
+{
+  "answer": "If a recursive function lacks a base condition, it triggers continuous calls resulting in a stack overflow error.",
+  "is_ai_generated": true,
+  "answered": true
+}
+```
+- **Refusal Response `200 OK`** (when question topic is not covered in lecture):
+```json
+{
+  "answer": "This lecture does not cover this topic.",
+  "is_ai_generated": true,
+  "answered": false
+}
+```
+- **Error Responses**:
+  - `400 Bad Request`: `{"code": "TRANSCRIPT_MISSING", "detail": "No transcript available"}`
+  - `403 Forbidden`: `{"code": "PRIVACY_GUARD_BLOCKED", "detail": "CRITICAL_PRIVACY_VIOLATION: ..."}`
+  - `404 Not Found`: Entity not found or access denied.
+  - `429 Too Many Requests`: `{"code": "RATE_LIMIT_EXCEEDED", "detail": "Rate limit exceeded. Maximum 10 questions per minute."}`
+
+---
+
 ### 3.7 Quizzes
 
 #### `GET /api/v1/lectures/{lecture_id}/quiz`
@@ -297,8 +352,8 @@ Retrieves existing quiz if already generated for this lecture.
 - **Auth**: Required (Owner only).
 - **Response `200 OK`**: `QuizPayload` (see schema below).
 
-#### `POST /api/v1/lectures/{lecture_id}/quiz?num_questions=5`
-Generates an on-demand multiple choice quiz grounded strictly in the lecture concepts.
+#### `POST /api/v1/lectures/{lecture_id}/quiz`
+Generates an on-demand multiple choice quiz grounded strictly in the lecture concepts according to `docs/API_PROPOSAL.md`.
 - **Auth**: Required (Owner only).
 - **Query Parameter**: `num_questions` (integer between 1 and 15, default 5).
 - **Response `200 OK`**:

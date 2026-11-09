@@ -63,26 +63,21 @@ const mockQuiz: Quiz = {
 
 describe("M6 Learning Materials Components", () => {
   describe("NotesTab", () => {
-    it("renders headings, bullet points, disclaimer, and timestamp references", () => {
-      const onTimestampClick = vi.fn();
+    it("renders headings, bullet points, and disclaimer without timestamp references", () => {
       render(
         <NotesTab
           materials={mockMaterials}
           isLoading={false}
           isError={false}
           onRetry={vi.fn()}
-          onTimestampClick={onTimestampClick}
         />
       );
 
       expect(screen.getByText("BST Properties")).toBeInTheDocument();
       expect(screen.getByText("Left is smaller")).toBeInTheDocument();
       expect(screen.getByText("AI-generated synthesized study material.")).toBeInTheDocument();
-
-      const timeBtn = screen.getByText("00:10 - 00:20");
-      expect(timeBtn).toBeInTheDocument();
-      fireEvent.click(timeBtn);
-      expect(onTimestampClick).toHaveBeenCalledWith(10);
+      // Timestamp references were removed from frontend components per requirements
+      expect(screen.queryByText("00:10 - 00:20")).not.toBeInTheDocument();
     });
 
     it("renders empty state when materials has no notes", () => {
@@ -202,18 +197,18 @@ describe("M6 Learning Materials Components", () => {
         />
       );
 
-      expect(screen.getByText("Generate AI Practice Quiz")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /Start Quiz/i })).toBeInTheDocument();
+      expect(screen.getByText("Practice Quiz")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Quiz shuru karo/i })).toBeInTheDocument();
 
       // Change question count to 10
       fireEvent.click(screen.getByRole("button", { name: /10 Questions/i }));
 
       // Click start
-      fireEvent.click(screen.getByRole("button", { name: /Start Quiz/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Quiz shuru karo/i }));
       expect(onGenerate).toHaveBeenCalledWith(10);
     });
 
-    it("renders quiz options, handles answer selection without client scoring, and displays backend explanation", () => {
+    it("renders quiz options, handles answer selection, shows scoring, and displays backend explanation", () => {
       render(
         <QuizTab
           quiz={mockQuiz}
@@ -229,8 +224,12 @@ describe("M6 Learning Materials Components", () => {
       expect(screen.getByText("Left subtree")).toBeInTheDocument();
       expect(screen.getByText("Right subtree")).toBeInTheDocument();
 
-      // Click option
+      // Click correct option
       fireEvent.click(screen.getByText("Left subtree"));
+
+      // Shows score and Correct feedback
+      expect(screen.getByText(/Score: 1\/1/i)).toBeInTheDocument();
+      expect(screen.getByText(/Correct/i)).toBeInTheDocument();
 
       // Explanation button appears
       const explBtn = screen.getByRole("button", { name: /Show Backend Explanation/i });

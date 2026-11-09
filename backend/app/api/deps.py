@@ -118,6 +118,13 @@ def get_current_user(
         elif len(parts) == 1:
             token = parts[0].strip()
 
+    if not token:
+        raise AppException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            message="Authorization header with Bearer token is required",
+            code="UNAUTHORIZED",
+        )
+
     if settings.AUTH_MODE == "dev":
         if settings.ENVIRONMENT == "production":
             raise AppException(
@@ -125,18 +132,11 @@ def get_current_user(
                 message="AUTH_MODE=dev is forbidden when ENVIRONMENT=production",
                 code="INSECURE_CONFIGURATION",
             )
-        # In dev mode, if no token header provided, use default dev mock user
-        user_info = _parse_dev_token(token or "")
+        user_info = _parse_dev_token(token)
         user_id = user_info["id"]
         email = user_info["email"]
         full_name = user_info["full_name"]
     elif settings.AUTH_MODE == "firebase":
-        if not token:
-            raise AppException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                message="Authorization header with Bearer token is required",
-                code="UNAUTHORIZED",
-            )
         decoded = _verify_firebase_token(token)
         user_id = decoded.get("uid") or decoded.get("user_id") or decoded.get("sub")
         if not user_id:

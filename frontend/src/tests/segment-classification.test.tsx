@@ -94,6 +94,7 @@ describe("Transcript Segment Classification", () => {
           id: "seg_no_type",
           start_time: 0,
           end_time: 10,
+          text: "Unclassified text",
           text_roman: "Unclassified text",
         },
       ],

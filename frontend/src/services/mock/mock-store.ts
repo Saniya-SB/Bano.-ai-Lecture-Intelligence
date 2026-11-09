@@ -1,4 +1,4 @@
-﻿import { env } from "@/config/env";
+import { env } from "@/config/env";
 import { LectureDto, JobDto, UserDto } from "@/types/api/common";
 import { MOCK_BENCHMARK_RESULTS, MOCK_LECTURES, MOCK_JOBS, MOCK_USER, MOCK_TRANSCRIPTS, MOCK_LEARNING_MATERIALS, MOCK_QUIZ_TEMPLATES } from "./fixtures";
 import { LearningMaterialsDto, QuizDto } from "@/types/api/materials";
@@ -41,22 +41,26 @@ class MockStore {
     this.isAuthenticated = true;
   }
   private restorePersistedState() {
-  if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !window.localStorage) return;
 
-  const savedData = window.localStorage.getItem(this.DATA_STORAGE_KEY);
-  if (!savedData) return;
+    try {
+      const savedData = window.localStorage.getItem(this.DATA_STORAGE_KEY);
+      if (!savedData) return;
 
-  try {
-    const data = JSON.parse(savedData);
+      const data = JSON.parse(savedData);
 
-    if (Array.isArray(data.lectures) && data.jobs) {
-      this.lectures = data.lectures;
-      this.jobs = data.jobs;
+      if (Array.isArray(data.lectures) && data.jobs) {
+        this.lectures = data.lectures;
+        this.jobs = data.jobs;
+      }
+    } catch {
+      try {
+        window.localStorage?.removeItem(this.DATA_STORAGE_KEY);
+      } catch {
+        // ignore
+      }
     }
-  } catch {
-    window.localStorage.removeItem(this.DATA_STORAGE_KEY);
   }
-}
 
 private persistState() {
   if (typeof window === "undefined") return;
