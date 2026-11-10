@@ -216,13 +216,13 @@ function UploadPanel() {
 
       <Button
         type="submit"
-        className="w-full gap-2 bg-bano-primary text-white hover:bg-bano-primary/90 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full gap-2 bg-[#1F3A5F] text-white hover:bg-[#162B46] font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
         disabled={isUploading || !isValid}
       >
         {isUploading ? (
-          <><Loader2 className="h-4 w-4 animate-spin" />Audio taiyaar ho raha hai… ({uploadPercent}%)</>
+          <><Loader2 className="h-4 w-4 animate-spin" />Processing audio… ({uploadPercent}%)</>
         ) : (
-          <><Upload className="h-4 w-4" />Process lecture</>
+          <><Upload className="h-4 w-4" />Process Lecture</>
         )}
       </Button>
     </form>
@@ -322,13 +322,13 @@ function RecordPanel() {
       {recordedBlob && (
         <Button
           type="submit"
-          className="w-full gap-2 bg-bano-primary text-white hover:bg-bano-primary/90 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full gap-2 bg-[#1F3A5F] text-white hover:bg-[#162B46] font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
           disabled={isUploading || !isValid}
         >
           {isUploading ? (
-            <><Loader2 className="h-4 w-4 animate-spin" />Audio taiyaar ho raha hai… ({uploadPercent}%)</>
+            <><Loader2 className="h-4 w-4 animate-spin" />Processing audio… ({uploadPercent}%)</>
           ) : (
-            <><Mic className="h-4 w-4" />Process lecture</>
+            <><Mic className="h-4 w-4" />Process Lecture</>
           )}
         </Button>
       )}

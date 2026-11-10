@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     # Gnani STT
     GNANI_API_KEY: str = ""
     GNANI_BASE_URL: str = "https://api.vachana.ai"
-    GNANI_REST_MAX_DURATION_SECONDS: int = 30
+    GNANI_REST_MAX_DURATION_SECONDS: int = 600
     GNANI_BATCH_POLL_INTERVAL_SECONDS: float = 2.0
     GNANI_BATCH_TIMEOUT_SECONDS: int = 300
 

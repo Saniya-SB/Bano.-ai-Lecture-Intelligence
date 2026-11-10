@@ -74,8 +74,14 @@ class GnaniSTTProvider:
             logger.info(f"Using Gnani REST STT for lecture {lecture_id} (duration={duration_seconds:.1f}s)")
             raw_response = await self._transcribe_rest(audio_bytes, filename)
         else:
-            logger.info(f"Using Gnani Batch STT for lecture {lecture_id} (duration={duration_seconds:.1f}s)")
-            raw_response = await self._transcribe_batch(audio_bytes, filename)
+            logger.info(f"Attempting Gnani Batch STT for lecture {lecture_id} (duration={duration_seconds:.1f}s)")
+            try:
+                raw_response = await self._transcribe_batch(audio_bytes, filename)
+            except Exception as batch_err:
+                logger.warning(
+                    f"Gnani Batch STT failed ({batch_err}); falling back to REST endpoint for lecture {lecture_id}"
+                )
+                raw_response = await self._transcribe_rest(audio_bytes, filename)
 
         return self._normalise_response(raw_response, lecture_id, duration_seconds)
 
@@ -138,7 +144,7 @@ class GnaniSTTProvider:
                 resp = await client.post(
                     create_url,
                     headers=self._get_headers(),
-                    data={"config": str(config_data)},
+                    data={"config": json.dumps(config_data)},
                     files=files,
                 )
                 if resp.status_code >= 400:
