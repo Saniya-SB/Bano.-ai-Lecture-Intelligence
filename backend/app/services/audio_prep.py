@@ -93,45 +93,71 @@ class AudioPrepService:
     @classmethod
     def convert_to_standard_wav(cls, input_path: str, output_path: str) -> str:
         """
-        Converts any supported input media (MP4, MP3, M4A, OGG, WEBM)
+        Converts any supported input media (MP4, MP3, M4A, OGG, WEBM, WAV)
         to standard 16kHz mono 16-bit PCM WAV required by STT engines.
-        Uses subprocess with args list (no shell=True).
+        Uses system ffmpeg if available, otherwise uses bundled PyAV (av)
+        for fast, self-contained, in-process audio transcoding.
         """
-        if not cls.is_ffmpeg_available():
-            # If ffmpeg is absent and input is already wav, copy directly
+        if cls.is_ffmpeg_available():
+            cmd = [
+                settings.FFMPEG_PATH,
+                "-y",  # overwrite output
+                "-i", input_path,
+                "-vn",  # strip video
+                "-acodec", "pcm_s16le",
+                "-ac", "1",  # mono
+                "-ar", "16000",  # 16kHz
+                output_path,
+            ]
+
+            try:
+                subprocess.run(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=True,
+                    shell=False,
+                    timeout=120,
+                )
+                return output_path
+            except subprocess.CalledProcessError as e:
+                logger.warning(f"FFmpeg conversion failed ({e.stderr.decode('utf-8', errors='ignore')}), falling back to PyAV...")
+
+        # Fallback to PyAV (fast C-bindings FFmpeg without requiring system binary)
+        try:
+            import av
+            with av.open(input_path) as in_container:
+                if not in_container.streams.audio:
+                    raise AppException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        message="No audio stream found in the uploaded file",
+                        code="AUDIO_NO_STREAM",
+                    )
+                in_stream = in_container.streams.audio[0]
+                resampler = av.AudioResampler(
+                    format="s16",
+                    layout="mono",
+                    rate=16000,
+                )
+                with av.open(output_path, "w", format="wav") as out_container:
+                    out_stream = out_container.add_stream("pcm_s16le", rate=16000)
+                    out_stream.layout = "mono"
+                    for frame in in_container.decode(in_stream):
+                        for resampled_frame in resampler.resample(frame):
+                            for packet in out_stream.encode(resampled_frame):
+                                out_container.mux(packet)
+                    for packet in out_stream.encode(None):
+                        out_container.mux(packet)
+            return output_path
+        except Exception as av_err:
+            logger.error(f"PyAV audio conversion error: {av_err}")
+            # Last-resort fallback: copy directly if already wav
             if input_path.lower().endswith(".wav"):
                 shutil.copyfile(input_path, output_path)
                 return output_path
-            logger.warning("FFmpeg binary not found in PATH; copying directly as fallback")
-            shutil.copyfile(input_path, output_path)
-            return output_path
-
-        cmd = [
-            settings.FFMPEG_PATH,
-            "-y",  # overwrite output
-            "-i", input_path,
-            "-vn",  # strip video
-            "-acodec", "pcm_s16le",
-            "-ac", "1",  # mono
-            "-ar", "16000",  # 16kHz
-            output_path,
-        ]
-
-        try:
-            subprocess.run(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                check=True,
-                shell=False,
-                timeout=120,
-            )
-            return output_path
-        except subprocess.CalledProcessError as e:
-            logger.error(f"FFmpeg conversion failed: {e.stderr.decode('utf-8', errors='ignore')}")
             raise AppException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                message="Failed to process and normalize audio format",
+                message=f"Failed to normalize audio format: {str(av_err)}",
                 code="AUDIO_CONVERSION_ERROR",
             )
 
