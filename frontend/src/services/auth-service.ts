@@ -61,6 +61,16 @@ export const authService = {
       throw new Error("Firebase Auth is not configured. Please check your environment variables.");
     }
 
+    // Ensure persistence works – try local, fall back to in‑memory
+    try {
+      const { setPersistence, browserLocalPersistence, inMemoryPersistence } = await import("firebase/auth");
+      await setPersistence(auth, browserLocalPersistence);
+    } catch (e) {
+      console.warn("Local persistence unavailable – falling back to in‑memory persistence");
+      const { setPersistence, inMemoryPersistence } = await import("firebase/auth");
+      await setPersistence(auth, inMemoryPersistence);
+    }
+
     const provider = getGoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
     const token = await result.user.getIdToken();
@@ -73,6 +83,7 @@ export const authService = {
     }
     return user;
   },
+
 
   /**
    * Email/Password Login (Dev mode or fallback):

@@ -6,6 +6,7 @@ let firebaseApp: FirebaseApp | null = null;
 let firebaseAuth: Auth | null = null;
 let googleProvider: GoogleAuthProvider | null = null;
 
+/** Initialize (or return cached) Firebase app */
 export function getFirebaseApp(): FirebaseApp | null {
   if (typeof window === "undefined") return null;
 
@@ -34,6 +35,7 @@ export function getFirebaseApp(): FirebaseApp | null {
   }
 }
 
+/** Returns a singleton Auth instance with persistence handling */
 export function getFirebaseAuth(): Auth | null {
   if (typeof window === "undefined") return null;
   if (firebaseAuth) return firebaseAuth;
@@ -42,7 +44,23 @@ export function getFirebaseAuth(): Auth | null {
   if (!app) return null;
 
   try {
-    firebaseAuth = getAuth(app);
+    const auth = getAuth(app);
+    // Prefer local persistence, fallback to in‑memory if unavailable
+    import("firebase/auth").then(
+      ({ setPersistence, browserLocalPersistence, inMemoryPersistence }) => {
+        setPersistence(auth, browserLocalPersistence).catch(() => {
+          console.warn(
+            "Local persistence unavailable – using in‑memory persistence for Firebase Auth"
+          );
+          setPersistence(auth, inMemoryPersistence).catch(() => {
+            console.warn(
+              "Failed to set any Firebase persistence – auth may not survive page reloads"
+            );
+          });
+        });
+      }
+    );
+    firebaseAuth = auth;
     return firebaseAuth;
   } catch (error) {
     console.warn("Failed to get Firebase Auth instance:", error);
@@ -50,11 +68,12 @@ export function getFirebaseAuth(): Auth | null {
   }
 }
 
+/** Returns a singleton GoogleAuthProvider */
 export function getGoogleAuthProvider(): GoogleAuthProvider {
   if (!googleProvider) {
     googleProvider = new GoogleAuthProvider();
+    // Force account selection every login
     googleProvider.setCustomParameters({ prompt: "select_account" });
   }
   return googleProvider;
 }
-

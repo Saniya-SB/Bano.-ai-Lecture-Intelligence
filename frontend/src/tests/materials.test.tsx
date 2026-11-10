@@ -92,8 +92,6 @@ describe("M6 Learning Materials Components", () => {
       expect(screen.getByText("BST Properties")).toBeInTheDocument();
       expect(screen.getByText("Left is smaller")).toBeInTheDocument();
       expect(screen.getByText("AI-generated synthesized study material.")).toBeInTheDocument();
-      // Timestamp references were removed from frontend components per requirements
-      expect(screen.queryByText("00:10 - 00:20")).not.toBeInTheDocument();
     });
 
     it("renders empty state when materials has no notes", () => {
@@ -213,18 +211,18 @@ describe("M6 Learning Materials Components", () => {
         />
       );
 
-      expect(screen.getByText("Practice Quiz")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /Quiz shuru karo/i })).toBeInTheDocument();
+      expect(screen.getByText("Generate AI Practice Quiz")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Start Quiz/i })).toBeInTheDocument();
 
       // Change question count to 10
       fireEvent.click(screen.getByRole("button", { name: /10 Questions/i }));
 
       // Click start
-      fireEvent.click(screen.getByRole("button", { name: /Quiz shuru karo/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Start Quiz/i }));
       expect(onGenerate).toHaveBeenCalledWith(10);
     });
 
-    it("renders quiz options, handles answer selection without client scoring, and displays backend explanation", () => {
+    it("renders quiz options, keeps feedback and explanations hidden during attempt, and reveals them upon submission", async () => {
       render(
         <QuizTab
           quiz={mockQuiz}
@@ -240,12 +238,153 @@ describe("M6 Learning Materials Components", () => {
       expect(screen.getByText("Left subtree")).toBeInTheDocument();
       expect(screen.getByText("Right subtree")).toBeInTheDocument();
 
-      // Click option
+      // Explanations must NOT be visible before submission
+      expect(screen.queryByText(/By BST definition/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Show Explanation/i })).not.toBeInTheDocument();
+
+      // Click option A for Question 1 (correct)
       fireEvent.click(screen.getByText("Left subtree"));
 
-      // Shows score and Correct feedback
-      expect(screen.getByText(/Score: 1\/1/i)).toBeInTheDocument();
-      expect(screen.getByText(/Correct/i)).toBeInTheDocument();
+      // Explanation is STILL not visible before submission
+      expect(screen.queryByText(/By BST definition/i)).not.toBeInTheDocument();
+
+      // Click option B for Question 2 (correct)
+      fireEvent.click(screen.getByText("O(log n)"));
+
+      // Click option B for Question 3 (correct)
+      fireEvent.click(screen.getByText("2"));
+
+      // Submit Quiz
+      const submitBtn = screen.getByRole("button", { name: /Submit Quiz/i });
+      fireEvent.click(submitBtn);
+
+      // Confirmation dialog opens
+      expect(screen.getByText("Submit Quiz?")).toBeInTheDocument();
+      const confirmBtn = screen.getByRole("button", { name: /Confirm Submission/i });
+      fireEvent.click(confirmBtn);
+
+      // Results screen appears
+      await waitFor(() => {
+        expect(screen.getByText("Your Assessment Results")).toBeInTheDocument();
+      });
+
+      // Score and accuracy displayed
+      expect(screen.getByText("3/3")).toBeInTheDocument();
+      expect(screen.getByText("100%")).toBeInTheDocument();
+
+      // Explanations are now visible in review
+      expect(screen.getByText(/By BST definition, left subtree has smaller values./i)).toBeInTheDocument();
+    });
+
+    it("evaluates incorrect-answer scoring accurately (mixed correct/incorrect and all-incorrect cases)", async () => {
+      // 1. Mixed test: 1 correct, 2 incorrect -> 1/3 (33%)
+      const { unmount } = render(
+        <QuizTab
+          quiz={mockQuiz}
+          isLoading={false}
+          isGenerating={false}
+          isError={false}
+          onGenerateQuiz={vi.fn()}
+          onRetry={vi.fn()}
+        />
+      );
+
+      // Question 1: Select "Left subtree" (Index 0 - Correct)
+      fireEvent.click(screen.getByText("Left subtree"));
+      // Question 2: Select "O(1)" (Index 0 - Incorrect, correct is Index 1)
+      fireEvent.click(screen.getByText("O(1)"));
+      // Question 3: Select "Unlimited" (Index 3 - Incorrect, correct is Index 1)
+      fireEvent.click(screen.getByText("Unlimited"));
+
+      fireEvent.click(screen.getByRole("button", { name: /Submit Quiz/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Confirm Submission/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText("Your Assessment Results")).toBeInTheDocument();
+      });
+
+      // Verify metrics
+      expect(screen.getByText("1/3")).toBeInTheDocument();
+      expect(screen.getByText("33%")).toBeInTheDocument();
+
+      unmount();
+
+      // 2. All-incorrect test: 0 correct, 3 incorrect -> 0/3 (0%)
+      render(
+        <QuizTab
+          quiz={mockQuiz}
+          isLoading={false}
+          isGenerating={false}
+          isError={false}
+          onGenerateQuiz={vi.fn()}
+          onRetry={vi.fn()}
+        />
+      );
+
+      // Question 1: Select "Right subtree" (Index 1 - Incorrect)
+      fireEvent.click(screen.getByText("Right subtree"));
+      // Question 2: Select "O(n)" (Index 2 - Incorrect)
+      fireEvent.click(screen.getByText("O(n)"));
+      // Question 3: Select "1" (Index 0 - Incorrect)
+      fireEvent.click(screen.getByText("1"));
+
+      fireEvent.click(screen.getByRole("button", { name: /Submit Quiz/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Confirm Submission/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText("Your Assessment Results")).toBeInTheDocument();
+      });
+
+      expect(screen.getByText("0/3")).toBeInTheDocument();
+      expect(screen.getByText("0%")).toBeInTheDocument();
+    });
+
+    it("preserves selected answers and keeps quiz editable when submission is cancelled", () => {
+      render(
+        <QuizTab
+          quiz={mockQuiz}
+          isLoading={false}
+          isGenerating={false}
+          isError={false}
+          onGenerateQuiz={vi.fn()}
+          onRetry={vi.fn()}
+        />
+      );
+
+      // Select option for Question 1
+      fireEvent.click(screen.getByText("Left subtree"));
+      expect(screen.getByText(/1 of 3 Answered/i)).toBeInTheDocument();
+
+      // Click Submit Quiz (opens Unanswered Warning since 2 are unanswered)
+      fireEvent.click(screen.getByRole("button", { name: /Submit Quiz/i }));
+      expect(screen.getByText("Unanswered Questions")).toBeInTheDocument();
+
+      // Cancel submission
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(screen.queryByText("Unanswered Questions")).not.toBeInTheDocument();
+
+      // Verify answer is preserved and progress unchanged
+      expect(screen.getByText(/1 of 3 Answered/i)).toBeInTheDocument();
+
+      // Verify quiz remains editable: select Question 2
+      fireEvent.click(screen.getByText("O(log n)"));
+      expect(screen.getByText(/2 of 3 Answered/i)).toBeInTheDocument();
+    });
+
+    it("warns about unanswered questions on submit, allows Review Unanswered, and allows Submit Anyway", async () => {
+      render(
+        <QuizTab
+          quiz={mockQuiz}
+          isLoading={false}
+          isGenerating={false}
+          isError={false}
+          onGenerateQuiz={vi.fn()}
+          onRetry={vi.fn()}
+        />
+      );
+
+      // Answer only Question 1
+      fireEvent.click(screen.getByText("Left subtree"));
 
       // Click Submit Quiz
       fireEvent.click(screen.getByRole("button", { name: /Submit Quiz/i }));

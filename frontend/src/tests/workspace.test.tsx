@@ -103,7 +103,7 @@ vi.mock("@/hooks/use-quiz", () => ({
 }));
 
 describe("LectureWorkspacePage", () => {
-  it("renders lecture header and all 6 tabs", () => {
+  it("renders lecture header and tabs", () => {
     currentTab = "overview";
     render(<LectureWorkspaceInner lectureId="lec_101" />);
 
@@ -113,7 +113,7 @@ describe("LectureWorkspacePage", () => {
     expect(screen.getByRole("tab", { name: "Notes" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Summary" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Questions" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Quiz" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Ask" })).toBeInTheDocument();
   });
 
   it("changes tab via URL query replacement when clicking a tab", () => {

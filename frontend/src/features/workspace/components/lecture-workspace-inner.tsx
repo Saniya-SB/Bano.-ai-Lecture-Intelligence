@@ -50,7 +50,6 @@ export const WORKSPACE_TABS: { key: WorkspaceTab; label: string }[] = [
   { key: "summary", label: "Summary" },
   { key: "questions", label: "Questions" },
   { key: "announcements", label: "Announcements" },
-  { key: "quiz", label: "Quiz" },
   { key: "ask", label: "Ask" },
 ];
 

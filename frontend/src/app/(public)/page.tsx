@@ -113,7 +113,7 @@ export default function LandingPage() {
             Notes ab saaf hain.
           </h1>
           <p className="text-lg sm:text-xl text-bano-text-muted leading-relaxed max-w-2xl">
-            Upload ya record karo. Transcript, notes, glossary aur quiz — ek jagah.
+            Upload ya record karo. Transcript, notes, glossary aur Q&amp;A — ek jagah.
           </p>
         </div>
 
@@ -156,7 +156,7 @@ export default function LandingPage() {
           <div className="space-y-2">
             <p className="font-semibold text-foreground">Dual-script accuracy</p>
             <p>
-              Exam revision ke liye students ko dono chahiye: Devanagari reading clarity aur Romanized Hinglish search capability. Bano.ai domain terms ko preserve karke notes aur quiz generate karta hai.
+              Exam revision ke liye students ko dono chahiye: Devanagari reading clarity aur Romanized Hinglish search capability. Bano.ai domain terms ko preserve karke notes aur practice questions generate karta hai.
             </p>
           </div>
         </div>
@@ -199,10 +199,10 @@ export default function LandingPage() {
           </div>
 
           <div className="p-4 rounded-md border border-border bg-card space-y-2 hover:border-bano-border-strong transition-colors">
-            <span className="font-mono text-xs font-semibold text-bano-accent">04 · QUIZ</span>
-            <h3 className="font-heading font-semibold text-foreground text-base">Grounded practice</h3>
+            <span className="font-mono text-xs font-semibold text-bano-accent">04 · ASK THIS LECTURE</span>
+            <h3 className="font-heading font-semibold text-foreground text-base">Grounded Q&amp;A</h3>
             <p className="text-xs text-bano-text-muted leading-relaxed">
-              Lecture ke factual content pe based multiple choice questions aur explanations.
+              Lecture ke factual content se questions pucho — English, Hindi ya Hinglish mein.
             </p>
           </div>
         </div>

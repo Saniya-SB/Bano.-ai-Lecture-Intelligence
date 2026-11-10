@@ -204,35 +204,6 @@ export function OverviewTab({ lecture, onNavigateTab }: OverviewTabProps) {
               Practice Questions &rarr;
             </Button>
           </Card>
-
-          {/* Quiz Card */}
-          <Card className="p-5 flex flex-col justify-between space-y-4 md:col-span-2">
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-bano-accent uppercase tracking-wider">
-                  <Award className="h-3.5 w-3.5" /> Interactive Quiz
-                </span>
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-bano-accent-soft text-bano-accent">
-                  On-Demand
-                </span>
-              </div>
-              <h3 className="font-heading font-semibold text-base">
-                AI Knowledge Check
-              </h3>
-              <p className="text-xs text-bano-text-muted leading-relaxed">
-                On-demand customizable MCQ practice quizzes (1 to 15 questions) strictly grounded in core concept segments.
-              </p>
-            </div>
-
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => onNavigateTab("quiz")}
-              className="self-start text-xs bg-bano-accent hover:bg-bano-accent-hover text-white"
-            >
-              Take Quiz &rarr;
-            </Button>
-          </Card>
         </div>
       </div>
     </div>

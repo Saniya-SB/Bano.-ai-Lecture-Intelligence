@@ -8,7 +8,8 @@ api_router.include_router(lectures.router)
 api_router.include_router(uploads.router)
 api_router.include_router(jobs.router)
 api_router.include_router(benchmark.router, tags=["Benchmark"])
-# Public (no-auth) aggregate summary — safe to call from home page
+from .endpoints import auth as auth_router
+api_router.include_router(auth_router.router)
 api_router.include_router(benchmark_public.router)
 
 

@@ -28,7 +28,7 @@ export default function DashboardPage() {
     <div className="space-y-8 max-w-4xl">
       <PageHeader
         title="Dashboard"
-        description="Apne Hinglish lectures ko clean dual-script transcripts, notes aur quiz mein badlo."
+        description="Apne Hinglish lectures ko clean dual-script transcripts, notes aur Q&A mein badlo."
         action={
           <Button asChild className="gap-2 bg-bano-accent text-white hover:bg-bano-accent-hover font-medium">
             <Link href={ROUTES.NEW_LECTURE}>
