@@ -1,6 +1,7 @@
-from typing import Optional
+import os
 import json
 import base64
+from typing import Optional
 from fastapi import Depends, Header, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select
