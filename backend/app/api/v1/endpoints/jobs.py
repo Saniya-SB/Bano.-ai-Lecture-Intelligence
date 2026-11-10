@@ -8,7 +8,7 @@ from backend.app.api.deps import get_current_user
 from backend.app.models.entities import User, TranscriptionJob, Lecture
 from backend.app.models.enums import JobStage, LectureStatus
 from backend.app.schemas.upload_job import JobDto
-from backend.app.services.lecture_pipeline import process_lecture_pipeline
+from backend.app.services.pipeline_worker import process_lecture_pipeline
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
