@@ -57,15 +57,15 @@ class Settings(BaseSettings):
     ASK_LECTURE_PROMPT_VERSION: str = "v1.0"
 
     # LLM Settings & Pricing Configuration
-    LLM_PROVIDER: Literal["gemini", "openai", "groq"] = "gemini"
-    LLM_FALLBACK_PROVIDER: Optional[Literal["gemini", "openai", "groq"]] = "groq"
-    LLM_TIER: Literal["free", "paid"] = "free"
+    LLM_PROVIDER: Literal["gemini", "openai", "groq"] = "groq"
+    LLM_FALLBACK_PROVIDER: Optional[Literal["gemini", "openai", "groq"]] = "gemini"
+    LLM_TIER: Literal["free", "paid"] = "paid"
     
     # Model IDs
     GEMINI_DEFAULT_MODEL: str = "gemini-flash-lite-latest"
     GEMINI_FALLBACK_MODEL: str = "gemini-flash-latest"
     OPENAI_DEFAULT_MODEL: str = "gpt-4o-mini"
-    GROQ_DEFAULT_MODEL: str = "qwen/qwen3.8-27b"
+    GROQ_DEFAULT_MODEL: str = "openai/gpt-oss-120b"
     GROQ_FALLBACK_MODEL: str = "openai/gpt-oss-20b"
     
     # API Keys

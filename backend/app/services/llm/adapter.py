@@ -247,7 +247,10 @@ class GroqProvider(LLMProvider):
         req_body = {
             "model": model,
             "messages": [
-                {"role": "system", "content": f"{system_instruction}\nYou MUST output valid JSON conforming strictly to the requested schema."},
+                {
+                    "role": "system",
+                    "content": f"{system_instruction}\n\nYou MUST output valid JSON conforming strictly to this JSON Schema:\n{json.dumps(schema)}"
+                },
                 {"role": "user", "content": prompt},
             ],
             "temperature": temperature,
