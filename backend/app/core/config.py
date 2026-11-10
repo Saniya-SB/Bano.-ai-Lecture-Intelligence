@@ -62,8 +62,8 @@ class Settings(BaseSettings):
     LLM_TIER: Literal["free", "paid"] = "free"
     
     # Model IDs
-    GEMINI_DEFAULT_MODEL: str = "gemini-3.1-flash-lite"
-    GEMINI_FALLBACK_MODEL: str = "gemini-3.8-flash"
+    GEMINI_DEFAULT_MODEL: str = "gemini-flash-lite-latest"
+    GEMINI_FALLBACK_MODEL: str = "gemini-flash-latest"
     OPENAI_DEFAULT_MODEL: str = "gpt-4o-mini"
     GROQ_DEFAULT_MODEL: str = "qwen/qwen3.8-27b"
     GROQ_FALLBACK_MODEL: str = "openai/gpt-oss-20b"
@@ -75,6 +75,8 @@ class Settings(BaseSettings):
     
     # Pricing configuration per 1M tokens (USD)
     LLM_PRICING_PER_1M: dict[str, dict[str, float]] = {
+        "gemini-flash-lite-latest": {"input": 0.075, "output": 0.30},
+        "gemini-flash-latest": {"input": 0.15, "output": 0.60},
         "gemini-3.1-flash-lite": {"input": 0.25, "output": 1.50},
         "gemini-3.8-flash": {"input": 0.75, "output": 3.75},
         "gpt-4o-mini": {"input": 0.15, "output": 0.60},
