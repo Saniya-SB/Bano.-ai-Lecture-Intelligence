@@ -1,4 +1,5 @@
 import time
+import json
 import uuid
 import httpx
 from typing import List, Dict, Any, Optional
@@ -123,22 +124,22 @@ class GnaniSTTProvider:
     async def _transcribe_batch(self, audio_bytes: bytes, filename: str) -> Dict[str, Any]:
         """
         Executes Gnani Batch STT workflow:
-        1. POST /stt/v3/batch/jobs (create job with audio)
+        1. POST /stt/v3/batch/jobs (create job with audio using 'files' multipart)
         2. POST /stt/v3/batch/jobs/{job_id}/start
         3. Poll GET /stt/v3/batch/jobs/{job_id} until completed
-        4. GET /stt/v3/batch/jobs/{job_id}/files for results
+        4. GET /stt/v3/batch/jobs/{job_id}/files for results & download transcripts
         """
         create_url = f"{self.base_url}/stt/v3/batch/jobs"
-        files = {
-            "audio_files": (filename, audio_bytes, "audio/wav"),
-        }
+        files = [
+            ("files", (filename, audio_bytes, "audio/wav")),
+        ]
         config_data = {
             "model": "prisma-v3.0",
             "language_code": "hi-IN,en-IN",
             "format": "codemix",
         }
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             try:
                 # 1. Create job
                 resp = await client.post(
@@ -162,10 +163,16 @@ class GnaniSTTProvider:
                         code="GNANI_BATCH_INVALID_RESPONSE",
                     )
 
-                # 2. Start job
+                # 2. Start job with retry for rate limit
                 start_url = f"{self.base_url}/stt/v3/batch/jobs/{job_id}/start"
-                start_resp = await client.post(start_url, headers=self._get_headers())
-                if start_resp.status_code >= 400:
+                start_resp = None
+                for _attempt in range(3):
+                    start_resp = await client.post(start_url, headers=self._get_headers())
+                    if start_resp.status_code == 429:
+                        await asyncio.sleep(2.0 * (_attempt + 1))
+                        continue
+                    break
+                if start_resp and start_resp.status_code >= 400:
                     raise AppException(
                         status_code=start_resp.status_code,
                         message=f"Gnani Batch Job start error: {start_resp.text}",
@@ -177,6 +184,10 @@ class GnaniSTTProvider:
                 start_time = time.time()
                 while time.time() - start_time < settings.GNANI_BATCH_TIMEOUT_SECONDS:
                     status_resp = await client.get(poll_url, headers=self._get_headers())
+                    if status_resp.status_code == 429:
+                        # Rate limited by Gnani gateway during polling, wait and retry
+                        await asyncio.sleep(6.0)
+                        continue
                     if status_resp.status_code >= 400:
                         raise AppException(
                             status_code=status_resp.status_code,
@@ -187,14 +198,42 @@ class GnaniSTTProvider:
                     current_status = (status_json.get("status") or "").lower()
 
                     if current_status in ("completed", "success", "done"):
-                        # 4. Fetch results
+                        # 4. Fetch results with retry
                         files_url = f"{self.base_url}/stt/v3/batch/jobs/{job_id}/files"
-                        files_resp = await client.get(files_url, headers=self._get_headers())
-                        result_data = files_resp.json() if files_resp.status_code < 400 else status_json
+                        files_resp = None
+                        for _attempt in range(5):
+                            files_resp = await client.get(files_url, headers=self._get_headers())
+                            if files_resp.status_code == 429:
+                                await asyncio.sleep(2.0 * (_attempt + 1))
+                                continue
+                            break
+
+                        files_list = []
+                        if files_resp and files_resp.status_code < 400:
+                            files_page = files_resp.json()
+                            raw_files = files_page.get("data") or files_page.get("files") or []
+                            for f_meta in raw_files:
+                                t_url = f_meta.get("transcript_url")
+                                if t_url:
+                                    for _dl_attempt in range(3):
+                                        try:
+                                            # Note: Presigned S3 transcript URL must NOT carry Gnani headers
+                                            t_resp = await client.get(t_url)
+                                            if t_resp.status_code == 200:
+                                                files_list.append(t_resp.json())
+                                                break
+                                            elif t_resp.status_code == 429:
+                                                await asyncio.sleep(2.0)
+                                        except Exception as dl_err:
+                                            logger.warning(f"Could not download transcript from {t_url}: {dl_err}")
+                                            break
+                                else:
+                                    files_list.append(f_meta)
+
                         return {
                             "batch_job_id": job_id,
                             "status": current_status,
-                            "files_result": result_data,
+                            "files_result": files_list if files_list else (files_resp.json() if files_resp else {}),
                             "job_status": status_json,
                         }
                     elif current_status in ("failed", "error"):
@@ -249,7 +288,7 @@ class GnaniSTTProvider:
             combined_texts = []
             for f in files:
                 segs = f.get("segments") or f.get("words") or []
-                text = f.get("transcript") or f.get("text") or ""
+                text = f.get("full_transcript") or f.get("transcript") or f.get("text") or ""
                 if text:
                     combined_texts.append(text)
                 for s in segs:
