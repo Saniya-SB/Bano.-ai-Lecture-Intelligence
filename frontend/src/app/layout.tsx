@@ -33,7 +33,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 const notoSansDevanagari = Noto_Sans_Devanagari({
-  subsets: ["devanagari"],
+  subsets: ["devanagari", "latin"],
   variable: "--font-noto-sans-devanagari",
   weight: ["400", "500", "600", "700"],
   display: "swap",
