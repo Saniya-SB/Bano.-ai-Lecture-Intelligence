@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     AUTH_MODE: Literal["dev", "firebase"] = "dev"
     DEV_MARK_UPLOADS_AS_TEST: bool = False
     FIREBASE_CREDENTIALS_PATH: str = ""
+    FIREBASE_CREDENTIALS_JSON: str = ""
     DEV_MOCK_USER_ID: str = "usr_mock_1"
     DEV_MOCK_USER_EMAIL: str = "student@bano.ai"
     DEV_MOCK_USER_NAME: str = "Aman Sharma"
@@ -107,6 +108,7 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
+        "https://*.vercel.app",
     ]
 
 

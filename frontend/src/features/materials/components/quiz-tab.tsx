@@ -6,15 +6,28 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatTimestamp } from "@/lib/formatters";
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import {
   Award,
   AlertCircle,
-  FileText,
   Clock,
   Sparkles,
   RotateCcw,
   CheckCircle2,
   XCircle,
   HelpCircle,
+  ArrowLeft,
+  Send,
+  AlertTriangle,
+  Check,
+  Loader2,
 } from "lucide-react";
 
 interface QuizTabProps {
@@ -25,6 +38,7 @@ interface QuizTabProps {
   onGenerateQuiz: (numQuestions: number) => Promise<Quiz>;
   onRetry: () => void;
   onTimestampClick?: (seconds: number) => void;
+  onBackToLecture?: () => void;
 }
 
 export function QuizTab({
@@ -35,6 +49,7 @@ export function QuizTab({
   onGenerateQuiz,
   onRetry,
   onTimestampClick,
+  onBackToLecture,
 }: QuizTabProps) {
   // Preserve question count across navigation / setup screen
   const [selectedNumQuestions, setSelectedNumQuestions] = useState<number>(5);
@@ -57,6 +72,49 @@ export function QuizTab({
   // Post-submission explanation reveal toggle: { [questionId]: boolean }
   const [revealedExplanations, setRevealedExplanations] = useState<Record<string, boolean>>({});
 
+  // Question card DOM element references for smooth scroll on review
+  const questionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Results screen container ref for auto-scrolling to top upon submission
+  const resultsTopRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-scroll to the top of the Assessment Results whenever isSubmitted becomes true
+  useEffect(() => {
+    if (isSubmitted && resultsTopRef.current) {
+      resultsTopRef.current.scrollIntoView?.({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  }, [isSubmitted]);
+
+  // Start fresh quiz generation
+  const handleStartGeneration = async () => {
+    if (isGenerating) return;
+    try {
+      await onGenerateQuiz(selectedNumQuestions);
+      // Fresh attempt: clear state
+      setSelectedAnswers({});
+      setIsSubmitted(false);
+      setRevealedExplanations({});
+      setInSetupMode(false);
+      setHighlightUnanswered(false);
+    } catch {
+      // Handled via isError
+    }
+  };
+
+  // Back to Quiz Setup
+  const handleBackToSetup = () => {
+    setInSetupMode(true);
+    // Preserves selectedNumQuestions, clears current answers and results
+    setSelectedAnswers({});
+    setIsSubmitted(false);
+    setRevealedExplanations({});
+    setHighlightUnanswered(false);
+  };
+
+  // Handle Option Select during active attempt
   const handleOptionSelect = (questionId: string, optionIndex: number) => {
     if (isSubmitted) return; // Prevent answer changes after submission
     setSelectedAnswers((prev) => ({
@@ -149,15 +207,15 @@ export function QuizTab({
   // 1. Loading / Generating State
   if (isLoading || isGenerating) {
     return (
-      <Card className="p-12 text-center space-y-4">
-        <Loader2 className="h-8 w-8 mx-auto text-bano-secondary-ink animate-spin" />
+      <Card className="p-12 text-center space-y-4 animate-pulse">
+        <Sparkles className="h-10 w-10 mx-auto text-bano-accent animate-spin" />
         <h3 className="font-heading font-semibold text-base">
           {isGenerating
-            ? `${selectedNumQuestions} questions taiyaar ho rahe hain...`
-            : "Quiz load ho raha hai..."}
+            ? `Generating ${selectedNumQuestions} Quiz Questions...`
+            : "Loading Quiz..."}
         </h3>
         <p className="text-xs text-bano-text-muted max-w-sm mx-auto">
-          Lecture ke core concepts se factual multiple-choice questions ban rahe hain.
+          AI is grounding self-assessment multiple-choice questions strictly from the core concept and example segments of this lecture.
         </p>
       </Card>
     );
@@ -193,10 +251,10 @@ export function QuizTab({
 
         <div className="space-y-2">
           <h3 className="font-heading font-bold text-xl text-foreground">
-            Practice Quiz
+            Generate AI Practice Quiz
           </h3>
           <p className="text-xs sm:text-sm text-bano-text-muted leading-relaxed">
-            Lecture ke concepts pe based multiple-choice questions se revision karo.
+            Test your understanding with targeted multiple-choice questions derived directly from the concepts taught in this lecture.
           </p>
         </div>
 
@@ -230,9 +288,9 @@ export function QuizTab({
           type="button"
           onClick={handleStartGeneration}
           disabled={isGenerating}
-          className="w-full sm:w-auto px-8 bg-bano-primary hover:bg-bano-primary/90 text-white font-medium"
+          className="w-full sm:w-auto px-8 bg-bano-accent hover:bg-bano-accent-hover text-white"
         >
-          Quiz shuru karo
+          <Sparkles className="h-4 w-4 mr-2" /> Start Quiz
         </Button>
       </Card>
     );
@@ -504,40 +562,46 @@ export function QuizTab({
   // 5. Active Quiz Attempt Screen
   return (
     <div className="space-y-6">
-      {/* Quiz Header & AI Disclaimer */}
+      {/* Quiz Top Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-card rounded-lg border border-border">
-        <div>
-          <h3 className="font-heading font-semibold text-base text-foreground">
-            Knowledge Check ({quiz.questions.length} Questions)
-          </h3>
-          <p className="text-xs text-bano-text-muted mt-0.5">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleBackToSetup}
+              className="text-xs h-7 px-2 text-bano-text-muted hover:text-foreground -ml-2"
+              title="Return to setup"
+            >
+              <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back to Quiz Setup
+            </Button>
+
+            <span className="text-border">|</span>
+
+            <span className="text-xs font-semibold text-foreground">
+              {answeredCount} of {totalQuestions} Answered
+            </span>
+          </div>
+
+          <p className="text-xs text-bano-text-muted">
             {quiz.disclaimer}
           </p>
-          {answeredCount > 0 && (
-            <div className="flex items-center gap-2 pt-1 font-mono text-xs">
-              <span className="font-semibold text-foreground">
-                Score: {correctCount}/{answeredCount}
-              </span>
-              <span className="text-bano-text-muted">
-                ({Math.round((correctCount / quiz.questions.length) * 100)}% of total)
-              </span>
-              {answeredCount === quiz.questions.length && (
-                <span className="text-bano-success font-medium">✓ Completed!</span>
-              )}
-            </div>
-          )}
         </div>
 
-        {/* Re-generate button */}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setSelectedAnswers({})}
-          className="text-xs self-start sm:self-auto shrink-0"
-        >
-          <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset Answers
-        </Button>
+        {/* Action Controls */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowResetDialog(true)}
+            disabled={answeredCount === 0}
+            className="text-xs"
+          >
+            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset Answers
+          </Button>
+        </div>
       </div>
 
       {/* Questions Attempt List */}
@@ -548,95 +612,99 @@ export function QuizTab({
           const isCardHighlighted = highlightUnanswered && !hasSelected;
 
           return (
-            <Card key={q.id} className="p-6 space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <span className="text-xs font-bold text-bano-accent uppercase tracking-wider">
-                    Question {qIdx + 1}
-                  </span>
-                  <h4 className="font-heading font-semibold text-base text-foreground leading-snug">
-                    {q.question}
-                  </h4>
-                </div>
-
-                {q.referencedTimeRanges && q.referencedTimeRanges.length > 0 && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    {q.referencedTimeRanges.map((range, rIdx) => (
-                      <button
-                        key={rIdx}
-                        type="button"
-                        onClick={() => onTimestampClick?.(range.start)}
-                        className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-bano-surface-sunken text-bano-text-subtle hover:text-bano-accent hover:underline border border-border flex items-center gap-1"
-                        title="Jump to source timestamp"
-                      >
-                        <Clock className="h-2.5 w-2.5" />
-                        {formatTimestamp(range.start)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Options */}
-              <div className="space-y-2 pt-1">
-                {q.options.map((option, optIdx) => {
-                  const isSelected = selectedOption === optIdx;
-
-                  return (
-                    <button
-                      key={optIdx}
-                      type="button"
-                      onClick={() => handleOptionSelect(q.id, optIdx)}
-                      className={`w-full text-left p-3.5 rounded-lg border text-sm transition-all flex items-center justify-between ${
-                        isSelected
-                          ? "bg-bano-accent-soft/30 border-bano-accent text-foreground font-medium"
-                          : "bg-card border-border text-foreground hover:bg-bano-surface-sunken"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${
-                            isSelected
-                              ? "bg-bano-accent text-white"
-                              : "bg-bano-surface-sunken text-bano-text-muted"
-                          }`}
-                        >
-                          {String.fromCharCode(65 + optIdx)}
-                        </span>
-                        <span>{option}</span>
-                      </div>
-
-                      {isSelected && (
-                        <CheckCircle2 className="h-4 w-4 text-bano-accent shrink-0" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Explanation trigger & Backend-provided explanation */}
-              {hasSelected && q.explanation && (
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={() => toggleExplanation(q.id)}
-                    className="inline-flex items-center gap-1.5 text-xs text-bano-accent font-medium hover:underline"
-                  >
-                    <HelpCircle className="h-3.5 w-3.5" />
-                    {isExplanationRevealed ? "Hide Explanation" : "Show Backend Explanation"}
-                  </button>
-
-                  {isExplanationRevealed && (
-                    <div className="mt-2 p-3.5 rounded-lg bg-bano-surface-sunken border border-border text-xs text-foreground/90 leading-relaxed">
-                      <span className="font-semibold text-bano-text-subtle block mb-1 uppercase tracking-wider text-[10px]">
-                        Teacher Note / Concept Explanation:
+            <div
+              key={q.id}
+              ref={(el) => {
+                questionRefs.current[q.id] = el;
+              }}
+            >
+              <Card
+                className={`p-6 space-y-4 transition-all duration-200 border ${
+                  isCardHighlighted
+                    ? "border-bano-accent shadow-md bg-bano-accent-soft/10 ring-1 ring-bano-accent/40"
+                    : "border-border"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-bano-accent uppercase tracking-wider">
+                        Question {qIdx + 1}
                       </span>
-                      {q.explanation}
+
+                      {/* Answered / Unanswered Indicator */}
+                      {hasSelected ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-bano-success bg-bano-success/15 px-2 py-0.5 rounded-full">
+                          <CheckCircle2 className="h-3 w-3" /> Answered
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-bano-text-subtle bg-bano-surface-sunken px-2 py-0.5 rounded-full border border-border">
+                          Unanswered
+                        </span>
+                      )}
+                    </div>
+
+                    <h4 className="font-heading font-semibold text-base text-foreground leading-snug">
+                      {q.question}
+                    </h4>
+                  </div>
+
+                  {q.referencedTimeRanges && q.referencedTimeRanges.length > 0 && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      {q.referencedTimeRanges.map((range, rIdx) => (
+                        <button
+                          key={rIdx}
+                          type="button"
+                          onClick={() => onTimestampClick?.(range.start)}
+                          className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-bano-surface-sunken text-bano-text-subtle hover:text-bano-accent hover:underline border border-border flex items-center gap-1"
+                          title="Jump to source timestamp"
+                        >
+                          <Clock className="h-2.5 w-2.5" />
+                          {formatTimestamp(range.start)}
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
-              )}
-            </Card>
+
+                {/* Options List */}
+                <div className="space-y-2 pt-1">
+                  {q.options.map((option, optIdx) => {
+                    const isSelected = selectedOption === optIdx;
+
+                    return (
+                      <button
+                        key={optIdx}
+                        type="button"
+                        onClick={() => handleOptionSelect(q.id, optIdx)}
+                        className={`w-full text-left p-3.5 rounded-lg border text-sm transition-all flex items-center justify-between ${
+                          isSelected
+                            ? "bg-bano-accent-soft/30 border-bano-accent text-foreground font-medium shadow-sm"
+                            : "bg-card border-border text-foreground hover:bg-bano-surface-sunken"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${
+                              isSelected
+                                ? "bg-bano-accent text-white"
+                                : "bg-bano-surface-sunken text-bano-text-muted"
+                            }`}
+                          >
+                            {String.fromCharCode(65 + optIdx)}
+                          </span>
+                          <span>{option}</span>
+                        </div>
+
+                        {isSelected && (
+                          <CheckCircle2 className="h-4 w-4 text-bano-accent shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Card>
+            </div>
           );
         })}
       </div>

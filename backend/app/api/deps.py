@@ -20,16 +20,27 @@ def _get_or_init_firebase():
     if not _firebase_initialized:
         import firebase_admin
         from firebase_admin import credentials
+        import json
 
-        if not settings.FIREBASE_CREDENTIALS_PATH:
+        if firebase_admin._apps:
+            _firebase_initialized = True
+            return
+
+        if settings.FIREBASE_CREDENTIALS_JSON:
+            cred_dict = json.loads(settings.FIREBASE_CREDENTIALS_JSON)
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred)
+            _firebase_initialized = True
+        elif settings.FIREBASE_CREDENTIALS_PATH and os.path.exists(settings.FIREBASE_CREDENTIALS_PATH):
+            cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
+            firebase_admin.initialize_app(cred)
+            _firebase_initialized = True
+        else:
             raise AppException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                message="FIREBASE_CREDENTIALS_PATH is not configured",
+                message="Neither FIREBASE_CREDENTIALS_JSON nor valid FIREBASE_CREDENTIALS_PATH is configured",
                 code="FIREBASE_CONFIG_ERROR",
             )
-        cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
-        firebase_admin.initialize_app(cred)
-        _firebase_initialized = True
 
 
 def _verify_firebase_token(token: str) -> dict:

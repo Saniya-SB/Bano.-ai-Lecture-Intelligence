@@ -1,0 +1,13 @@
+.git
+.github
+frontend
+node_modules
+.pytest_cache
+*.db
+*.sqlite
+*.pyc
+__pycache__
+.venv
+tests
+exported_notes_sample.pdf
+bano_dev.db
